@@ -16,7 +16,7 @@ export function Sidebar() {
       {/* Desktop sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <span className="sidebar-logo-text">JobApp</span>
+          <span className="sidebar-logo-text">The Job App</span>
         </div>
 
         <nav className="sidebar-nav">

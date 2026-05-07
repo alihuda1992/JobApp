@@ -59,7 +59,7 @@ export function Login() {
     <div className="auth-page">
       <div className="auth-card card">
         <h1 className="auth-title">Welcome back</h1>
-        <p className="auth-subtitle">Sign in to your JobApp account</p>
+        <p className="auth-subtitle">Sign in to your account</p>
 
         <div className="oauth-group">
           <button

@@ -230,7 +230,7 @@ export function Onboarding() {
     <div className="onboarding-page">
       <div className="onboarding-container">
         <div className="onboarding-header">
-          <span className="onboarding-logo">JobApp</span>
+          <span className="onboarding-logo">The Job App</span>
           <div className="step-indicator">
             {[1, 2, 3].map((s) => (
               <div

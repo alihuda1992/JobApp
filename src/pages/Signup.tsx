@@ -68,7 +68,7 @@ export function Signup() {
     <div className="auth-page">
       <div className="auth-card card">
         <h1 className="auth-title">Create account</h1>
-        <p className="auth-subtitle">Start your job search with JobApp</p>
+        <p className="auth-subtitle">Start your job search with The Job App</p>
 
         <div className="oauth-group">
           <button

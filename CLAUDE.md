@@ -23,7 +23,7 @@ supabase secrets set ANTHROPIC_API_KEY=...
 
 ## Architecture
 
-**Frontend**: React 19 + Vite + TypeScript, deployed to GitHub Pages at `https://alihuda1992.github.io/JobApp/`. Vite base is `/JobApp/`. SPA routing uses the `public/404.html` sessionStorage redirect trick.
+**Frontend**: React 19 + Vite + TypeScript, deployed to GitHub Pages at `https://alihuda1992.github.io/JobApp/`. App display name is "The Job App". Vite base is `/JobApp/`. SPA routing uses the `public/404.html` sessionStorage redirect trick.
 
 **Backend**: Supabase — Postgres (with RLS), Auth (email+password), Storage (resumes bucket), and Edge Functions (Deno/TypeScript in `supabase/functions/`).
 
