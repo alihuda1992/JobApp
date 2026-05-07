@@ -219,10 +219,9 @@ export function Search() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data: saved } = await supabase
+    const { data: saved, error } = await supabase
       .from('jobs')
-      .upsert({
-        id: job.id,
+      .insert({
         user_id: user.id,
         source: job.source,
         external_id: job.external_id,
@@ -241,6 +240,8 @@ export function Search() {
       })
       .select()
       .single()
+
+    if (error) { console.error('Job save error:', error); return }
 
     if (saved) {
       await supabase.from('applications').insert({
