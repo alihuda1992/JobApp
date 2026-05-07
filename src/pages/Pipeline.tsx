@@ -336,17 +336,18 @@ export function Pipeline() {
 
       <style>{`
         .pipeline-page {
-          padding: 0;
-          height: calc(100vh - 64px);
+          padding: 32px;
+          height: 100vh;
           display: flex;
           flex-direction: column;
           overflow: hidden;
+          box-sizing: border-box;
         }
         .pipeline-header {
           display: flex;
           align-items: baseline;
           gap: 12px;
-          padding: 0 0 20px 0;
+          padding-bottom: 20px;
           flex-shrink: 0;
         }
         .page-title { font-size: 28px; }

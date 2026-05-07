@@ -20,14 +20,12 @@ export function AppLayout() {
           margin-left: var(--sidebar-width);
           flex: 1;
           overflow-y: auto;
-          padding: 32px;
           min-height: 100vh;
         }
 
         @media (max-width: 768px) {
           .app-main {
             margin-left: 0;
-            padding: 20px 16px 80px;
           }
         }
       `}</style>

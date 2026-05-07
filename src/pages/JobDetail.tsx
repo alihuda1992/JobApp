@@ -186,7 +186,7 @@ export function JobDetail() {
           {job.match_score !== null && (
             <div className="jd-score-block">
               <div className="jd-score-number" style={{ color: scoreColor(job.match_score) }}>
-                {job.match_score}<span style={{ fontSize: 20, fontWeight: 500, opacity: 0.7 }}>%</span>
+                <span className="jd-score-val">{job.match_score}<span className="jd-score-pct">%</span></span>
                 <span className="jd-score-label">match</span>
               </div>
               {breakdown && (
@@ -203,7 +203,7 @@ export function JobDetail() {
 
           <div className="jd-description">
             <h2 className="jd-section-title">Job Description</h2>
-            <pre className="jd-body">{job.description}</pre>
+            <div className="jd-body">{job.description}</div>
           </div>
         </div>
 
@@ -276,77 +276,99 @@ export function JobDetail() {
       </div>
 
       <style>{`
-        .jd-page { padding: 32px; }
+        .jd-page { padding: 32px; max-width: 1200px; }
         .back-link {
-          background: none; border: none; color: rgba(242,240,234,0.5);
-          font-size: 13px; cursor: pointer; margin-bottom: 24px; display: inline-block;
-          padding: 0;
+          background: none; border: none; color: rgba(242,240,234,0.45);
+          font-size: 13px; cursor: pointer; margin-bottom: 28px; display: inline-block; padding: 0;
         }
         .back-link:hover { color: var(--color-text); }
         .jd-loading { color: rgba(242,240,234,0.4); font-size: 13px; margin-top: 32px; }
+
         .jd-layout {
-          display: grid; grid-template-columns: 1fr 300px; gap: 28px; align-items: start;
+          display: grid; grid-template-columns: 1fr 280px; gap: 32px; align-items: start;
         }
-        @media (max-width: 768px) {
+        @media (max-width: 860px) {
           .jd-layout { grid-template-columns: 1fr; }
           .jd-panel { order: -1; }
         }
-        .jd-title { font-size: 30px; margin-bottom: 12px; line-height: 1.2; }
-        .jd-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+
+        .jd-title { font-size: 28px; margin-bottom: 14px; line-height: 1.25; }
+        .jd-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 24px; }
         .jd-meta-item {
-          font-size: 13px; color: rgba(242,240,234,0.6);
+          font-size: 12px; color: rgba(242,240,234,0.6);
           background: rgba(255,255,255,0.05); border: 1px solid var(--color-border);
-          border-radius: 20px; padding: 3px 10px;
+          border-radius: 20px; padding: 3px 11px;
         }
         .jd-link { color: var(--color-accent) !important; text-decoration: none; }
         .mono { font-family: "DM Mono", monospace; }
+
+        /* Score block */
         .jd-score-block {
-          display: flex; gap: 20px; align-items: flex-start;
-          padding: 16px; border-radius: var(--radius-card);
-          background: rgba(255,255,255,0.03); border: 1px solid var(--color-border);
-          margin-bottom: 24px;
+          display: flex; gap: 24px; align-items: center;
+          padding: 20px; border-radius: var(--radius-card);
+          background: rgba(255,255,255,0.025); border: 1px solid var(--color-border);
+          margin-bottom: 28px;
         }
         .jd-score-number {
-          font-size: 48px; font-weight: 700; font-family: "DM Mono", monospace;
-          line-height: 1; display: flex; flex-direction: column; align-items: center;
-          min-width: 70px;
+          display: flex; flex-direction: column; align-items: center;
+          min-width: 76px; flex-shrink: 0;
         }
-        .jd-score-label { font-size: 11px; font-weight: 400; opacity: 0.6; margin-top: 2px; font-family: "DM Sans", sans-serif; }
-        .jd-breakdown { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-        .breakdown-row { display: flex; flex-direction: column; gap: 4px; }
-        .breakdown-label { display: flex; justify-content: space-between; font-size: 11px; color: rgba(242,240,234,0.55); }
-        .breakdown-track { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
-        .breakdown-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
-        .jd-section-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; font-family: "DM Sans", sans-serif; }
-        .jd-description { margin-top: 4px; }
+        .jd-score-val {
+          font-size: 52px; font-weight: 700; font-family: "DM Mono", monospace; line-height: 1;
+        }
+        .jd-score-pct { font-size: 22px; font-weight: 500; opacity: 0.65; }
+        .jd-score-label {
+          font-size: 11px; font-weight: 400; opacity: 0.5; margin-top: 4px;
+          font-family: "DM Sans", sans-serif; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .jd-breakdown { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .breakdown-row { display: flex; flex-direction: column; gap: 5px; }
+        .breakdown-label {
+          display: flex; justify-content: space-between;
+          font-size: 11px; color: rgba(242,240,234,0.5);
+        }
+        .breakdown-track { height: 5px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+        .breakdown-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+
+        /* Description */
+        .jd-description { margin-top: 0; }
+        .jd-section-title {
+          font-size: 12px; font-weight: 600; margin-bottom: 14px;
+          font-family: "DM Sans", sans-serif; text-transform: uppercase;
+          letter-spacing: 0.5px; color: rgba(242,240,234,0.45);
+        }
         .jd-body {
-          white-space: pre-wrap; font-family: inherit; font-size: 13px;
-          line-height: 1.7; color: rgba(242,240,234,0.75);
-          max-height: 600px; overflow-y: auto;
+          font-size: 13px; line-height: 1.8; color: rgba(242,240,234,0.72);
+          max-height: 560px; overflow-y: auto; white-space: pre-wrap;
         }
-        .jd-panel-inner { padding: 20px; display: flex; flex-direction: column; gap: 12px; position: sticky; top: 24px; }
+
+        /* Right panel */
+        .jd-panel-inner {
+          padding: 20px; display: flex; flex-direction: column; gap: 10px;
+          position: sticky; top: 24px;
+        }
         .jd-pipeline-btn, .jd-cover-btn { width: 100%; padding: 10px; }
-        .jd-suggestions { margin-top: 4px; }
+        .jd-suggestions { margin-top: 8px; }
         .suggestions-header {
           display: flex; align-items: center; gap: 6px;
-          font-size: 12px; font-weight: 600; text-transform: uppercase;
-          letter-spacing: 0.5px; color: rgba(242,240,234,0.55); margin-bottom: 10px;
+          font-size: 11px; font-weight: 600; text-transform: uppercase;
+          letter-spacing: 0.5px; color: rgba(242,240,234,0.45); margin-bottom: 10px;
         }
         .suggestions-trigger { width: 100%; font-size: 12px; padding: 7px; }
         .suggestions-loading { font-size: 12px; color: rgba(242,240,234,0.4); text-align: center; padding: 8px 0; }
         .suggestions-error { font-size: 12px; color: #f87171; }
-        .suggestions-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .suggestions-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
         .suggestion-chip {
           display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
-          background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);
+          background: rgba(255,255,255,0.03); border: 1px solid var(--color-border);
           border-radius: var(--radius-btn); padding: 8px 10px; font-size: 12px;
-          line-height: 1.5; color: rgba(242,240,234,0.8);
+          line-height: 1.5; color: rgba(242,240,234,0.75);
         }
         .chip-dismiss {
-          background: none; border: none; color: rgba(242,240,234,0.3);
+          background: none; border: none; color: rgba(242,240,234,0.25);
           font-size: 14px; cursor: pointer; flex-shrink: 0; padding: 0; line-height: 1;
         }
-        .chip-dismiss:hover { color: rgba(242,240,234,0.7); }
+        .chip-dismiss:hover { color: rgba(242,240,234,0.65); }
       `}</style>
     </div>
   )
