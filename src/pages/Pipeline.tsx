@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/useAppStore'
-import { useAuth } from '@/hooks/useAuth'
 import type { Application } from '@/types'
 
 type KanbanStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'rejected'
@@ -144,49 +143,61 @@ function KanbanColumn({
 }
 
 export function Pipeline() {
-  const { user } = useAuth()
   const { applications, setApplications, upsertApplication, removeApplication } = useAppStore()
   const [loading, setLoading] = useState(true)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<KanbanStatus | null>(null)
 
   useEffect(() => {
-    if (!user) return
+    let cancelled = false
+    let channel: ReturnType<typeof supabase.channel> | null = null
 
-    supabase
-      .from('applications')
-      .select('*, job:jobs(*)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) setApplications(data as Application[])
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) {
         setLoading(false)
-      })
+        return
+      }
 
-    const channel = supabase
-      .channel('pipeline-apps')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'applications', filter: `user_id=eq.${user.id}` },
-        async (payload) => {
-          if (payload.eventType === 'DELETE') {
-            removeApplication((payload.old as { id: string }).id)
-          } else {
-            const { data } = await supabase
-              .from('applications')
-              .select('*, job:jobs(*)')
-              .eq('id', (payload.new as { id: string }).id)
-              .single()
-            if (data) upsertApplication(data as Application)
+      const { data, error } = await supabase
+        .from('applications')
+        .select('*, job:jobs!job_id(*)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (cancelled) return
+      if (error) console.error('Pipeline fetch error:', error)
+      if (data) setApplications(data as Application[])
+      setLoading(false)
+
+      channel = supabase
+        .channel('pipeline-apps')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'applications', filter: `user_id=eq.${user.id}` },
+          async (payload) => {
+            if (payload.eventType === 'DELETE') {
+              removeApplication((payload.old as { id: string }).id)
+            } else {
+              const { data } = await supabase
+                .from('applications')
+                .select('*, job:jobs!job_id(*)')
+                .eq('id', (payload.new as { id: string }).id)
+                .single()
+              if (data) upsertApplication(data as Application)
+            }
           }
-        }
-      )
-      .subscribe()
+        )
+        .subscribe()
+    }
+
+    init()
 
     return () => {
-      supabase.removeChannel(channel)
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
     }
-  }, [user?.id])
+  }, [])
 
   async function moveCard(targetStatus: KanbanStatus) {
     if (!dragId) return
