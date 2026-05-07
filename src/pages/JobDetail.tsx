@@ -84,7 +84,23 @@ export function JobDetail() {
     if (!job.user_id) {
       const { data: saved } = await supabase
         .from('jobs')
-        .upsert({ ...job, user_id: user.id })
+        .insert({
+          user_id: user.id,
+          source: job.source,
+          external_id: job.external_id,
+          title: job.title,
+          company: job.company,
+          location: job.location,
+          salary_min: job.salary_min != null ? Math.round(job.salary_min) : null,
+          salary_max: job.salary_max != null ? Math.round(job.salary_max) : null,
+          salary_currency: job.salary_currency,
+          description: job.description,
+          tags: job.tags,
+          url: job.url,
+          posted_at: job.posted_at,
+          match_score: job.match_score,
+          match_breakdown: job.match_breakdown,
+        })
         .select()
         .single()
       if (saved) dbJobId = saved.id
