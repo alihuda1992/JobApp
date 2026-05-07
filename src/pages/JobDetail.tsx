@@ -227,6 +227,15 @@ export function JobDetail() {
               Generate Cover Letter
             </button>
 
+            <button
+              className="btn btn-ghost jd-cover-btn"
+              onClick={() => navigate(`/tailored-resume/${job.id}`)}
+              disabled={!inPipeline}
+              title={!inPipeline ? 'Save to pipeline first' : undefined}
+            >
+              Tailor Resume ✦
+            </button>
+
             <div className="jd-suggestions">
               <div className="suggestions-header">
                 <span className="ai-indicator">✦</span>

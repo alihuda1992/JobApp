@@ -9,6 +9,7 @@ import { Search } from '@/pages/Search'
 import { JobDetail } from '@/pages/JobDetail'
 import { Resume } from '@/pages/Resume'
 import { CoverLetter } from '@/pages/CoverLetter'
+import { TailoredResume } from '@/pages/TailoredResume'
 import { Settings } from '@/pages/Settings'
 
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/resume" element={<Resume />} />
           <Route path="/cover/:jobId" element={<CoverLetter />} />
+          <Route path="/tailored-resume/:jobId" element={<TailoredResume />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
 

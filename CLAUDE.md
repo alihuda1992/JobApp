@@ -51,6 +51,7 @@ Schema lives in `supabase/migrations/001_initial_schema.sql`. Tables: `profiles`
 | `ai-tailoring-suggestions` | Haiku | 0.3 | 2–5 gap suggestions between resume and JD |
 | `ai-generate-cover-letter` | Sonnet | 0.7 | Draft cover letter; saves to `generated_docs` |
 | `ai-rewrite-section` | Sonnet | 0.5 | Rewrite a resume section, optionally targeting a JD |
+| `ai-tailor-resume` | Gemini 2.5 Flash | 0.3 | Full resume tailored to a specific JD; returns modified ResumeJSON |
 
 ## Design System
 
