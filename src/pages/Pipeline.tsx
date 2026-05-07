@@ -71,7 +71,11 @@ function AppCard({
         <span className="app-card-title">{job?.title ?? 'Unknown role'}</span>
         <button className="app-card-del" onClick={handleDelete} title="Remove">×</button>
       </div>
-      {job?.company && <span className="app-card-company">{job.company}</span>}
+      {(job?.company || job?.location) && (
+        <span className="app-card-company">
+          {[job.company, job.location].filter(Boolean).join(' · ')}
+        </span>
+      )}
       <div className="app-card-footer">
         {score !== null && (
           <span className="app-card-score" style={{ color: scoreColor(score) }}>
@@ -220,7 +224,14 @@ export function Pipeline() {
   }
 
   const visible = applications.filter((a) => KANBAN_KEYS.includes(a.status))
-  const byStatus = (key: KanbanStatus) => visible.filter((a) => a.status === key)
+  const byStatus = (key: KanbanStatus) =>
+    visible
+      .filter((a) => a.status === key)
+      .sort((a, b) => {
+        const sa = a.job?.match_score ?? -1
+        const sb = b.job?.match_score ?? -1
+        return sb - sa
+      })
 
   return (
     <div className="pipeline-page">
