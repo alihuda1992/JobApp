@@ -186,7 +186,7 @@ export function JobDetail() {
           {job.match_score !== null && (
             <div className="jd-score-block">
               <div className="jd-score-number" style={{ color: scoreColor(job.match_score) }}>
-                {job.match_score}
+                {job.match_score}<span style={{ fontSize: 20, fontWeight: 500, opacity: 0.7 }}>%</span>
                 <span className="jd-score-label">match</span>
               </div>
               {breakdown && (

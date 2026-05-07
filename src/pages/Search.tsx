@@ -87,7 +87,7 @@ function JobCard({
               <span className="score-dot" />
             </div>
           ) : (
-            <span className="score-value">{job.match_score}</span>
+            <span className="score-value">{job.match_score}<span className="score-pct">%</span></span>
           )}
         </div>
       </div>
@@ -514,6 +514,7 @@ export function Search() {
           font-size: 22px; font-weight: 700; font-family: "DM Mono", monospace;
           min-width: 44px; text-align: right; line-height: 1;
         }
+        .score-pct { font-size: 11px; font-weight: 500; opacity: 0.7; margin-left: 1px; }
         .score-dots { display: flex; gap: 3px; align-items: center; justify-content: flex-end; }
         .score-dot {
           width: 5px; height: 5px; border-radius: 50%;
