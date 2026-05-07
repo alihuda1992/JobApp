@@ -1,33 +1,44 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import Anthropic from 'npm:@anthropic-ai/sdk'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const client = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') })
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? ''
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`
 
-const SYSTEM_PROMPT = `You are a resume parser. Extract structured data from the provided resume text and return ONLY valid JSON matching this exact schema:
+async function callGemini(rawText: string): Promise<unknown> {
+  const prompt = `You are a resume parser. Extract structured data from the resume below and return ONLY valid JSON with no explanation, no markdown, no code fences.
+
+Required JSON schema:
 {
   "summary": "string",
-  "experience": [{"title":"string","company":"string","location":"string","start_date":"string","end_date":"string|null","bullets":["string"]}],
+  "experience": [{"title":"string","company":"string","location":"string","start_date":"string","end_date":"string or null","bullets":["string"]}],
   "education": [{"degree":"string","institution":"string","field":"string","graduation_year":"string"}],
   "skills": ["string"],
   "certifications": ["string"]
 }
-Return only the JSON object. No explanation, no markdown, no code fences.`
 
-async function parseResume(rawText: string): Promise<unknown> {
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 2048,
-    temperature: 0,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: rawText }],
+RESUME:
+${rawText}`
+
+  const res = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0 },
+    }),
   })
-  const text = message.content[0].type === 'text' ? message.content[0].text : ''
-  return JSON.parse(text.trim())
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Gemini API error ${res.status}: ${err}`)
+  }
+  const json = await res.json()
+  const content = (json.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
+  const cleaned = content.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+  return JSON.parse(cleaned)
 }
 
 serve(async (req) => {
@@ -44,13 +55,13 @@ serve(async (req) => {
 
     let parsed: unknown
     try {
-      parsed = await parseResume(raw_text)
-    } catch {
-      // Retry once
+      parsed = await callGemini(raw_text)
+    } catch (e1) {
       try {
-        parsed = await parseResume(raw_text)
-      } catch {
-        return new Response(JSON.stringify({ error: 'parse_failed' }), {
+        parsed = await callGemini(raw_text)
+
+      } catch (e2) {
+        return new Response(JSON.stringify({ error: 'parse_failed', detail: String(e2), first: String(e1) }), {
           status: 422,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })

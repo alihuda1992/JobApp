@@ -1,6 +1,29 @@
 import { useState, type FormEvent, type KeyboardEvent, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { useAppStore } from '@/store/useAppStore'
+import * as pdfjsLib from 'pdfjs-dist'
+import mammoth from 'mammoth'
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+
+async function extractText(file: File): Promise<string> {
+  if (file.type === 'application/pdf') {
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+    const pages: string[] = []
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i)
+      const content = await page.getTextContent()
+      pages.push(content.items.map((item) => ('str' in item ? item.str : '')).join(' '))
+    }
+    return pages.join('\n')
+  } else {
+    const arrayBuffer = await file.arrayBuffer()
+    const result = await mammoth.extractRawText({ arrayBuffer })
+    return result.value
+  }
+}
 
 const LOCATION_CHIPS = ['Remote', 'New York', 'San Francisco', 'London', 'Austin']
 const SENIORITY_OPTIONS = ['junior', 'mid', 'senior', 'lead', 'director']
@@ -8,6 +31,7 @@ const COMPANY_SIZE_OPTIONS = ['startup', 'mid-size', 'enterprise']
 
 export function Onboarding() {
   const navigate = useNavigate()
+  const { setResume } = useAppStore()
   const [step, setStep] = useState(1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,6 +52,7 @@ export function Onboarding() {
   // Step 3
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadStep, setUploadStep] = useState('')
 
   async function getUserId() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -138,6 +163,8 @@ export function Onboarding() {
     if (!skip && file) {
       const ext = file.name.split('.').pop()
       const filePath = `${userId}/${Date.now()}_${file.name}`
+
+      setUploadStep('Uploading file…')
       const { error: uploadError } = await supabase.storage
         .from('resumes')
         .upload(filePath, file)
@@ -148,13 +175,46 @@ export function Onboarding() {
         return
       }
 
-      await supabase.from('resumes').insert({
+      setUploadStep('Extracting text…')
+      let rawText = ''
+      try {
+        rawText = await extractText(file)
+      } catch {
+        // Text extraction failed — continue without it
+      }
+
+      const { data: resumeRow } = await supabase.from('resumes').insert({
         user_id: userId,
         file_path: filePath,
         file_name: file.name,
         file_type: ext === 'pdf' ? 'pdf' : 'docx',
+        raw_text: rawText || null,
         is_active: true,
-      })
+      }).select().single()
+
+      if (resumeRow) setResume(resumeRow)
+
+      if (rawText && resumeRow) {
+        setUploadStep('✦ Analyzing resume…')
+        try {
+          const { data, error: fnError } = await supabase.functions.invoke('ai-parse-resume', {
+            body: { raw_text: rawText },
+          })
+          if (fnError) {
+            console.error('ai-parse-resume error:', fnError)
+            setError(`AI analysis failed: ${fnError.message}`)
+          } else if (data?.error) {
+            console.error('ai-parse-resume detail:', data)
+            setError(`AI analysis failed: ${data.detail ?? data.error}`)
+          } else if (data?.parsed) {
+            await supabase.from('resumes').update({ parsed: data.parsed }).eq('id', resumeRow.id)
+            setResume({ ...resumeRow, parsed: data.parsed })
+          }
+        } catch (e) {
+          console.error('ai-parse-resume exception:', e)
+          setError(`AI analysis failed: ${String(e)}`)
+        }
+      }
     }
 
     await supabase.from('profiles').upsert({
@@ -374,7 +434,7 @@ export function Onboarding() {
                 disabled={uploading || !file}
                 onClick={() => handleStep3Submit(false)}
               >
-                {uploading ? 'Uploading…' : 'Finish setup'}
+                {uploading ? (uploadStep || 'Uploading…') : 'Finish setup'}
               </button>
             </div>
 

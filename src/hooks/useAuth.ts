@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { Profile } from '@/types'
+import { useAppStore } from '@/store/useAppStore'
+import type { Profile, Resume } from '@/types'
 
 interface AuthState {
   user: User | null
@@ -16,6 +17,19 @@ export function useAuth(): AuthState {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { setResume } = useAppStore()
+
+  async function fetchActiveResume(userId: string) {
+    const { data } = await supabase
+      .from('resumes')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    setResume(data as Resume | null)
+  }
 
   async function fetchOrCreateProfile(userId: string) {
     const { data } = await supabase
@@ -41,27 +55,28 @@ export function useAuth(): AuthState {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      if (session?.user) {
-        const p = await fetchOrCreateProfile(session.user.id)
-        if (p && !p.onboarding_complete) {
-          navigate('/onboarding', { replace: true })
-        }
-      }
       setLoading(false)
+      if (session?.user) {
+        fetchOrCreateProfile(session.user.id).then((p) => {
+          if (p && !p.onboarding_complete) navigate('/onboarding', { replace: true })
+        }).catch(() => {})
+        fetchActiveResume(session.user.id).catch(() => {})
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         setUser(session?.user ?? null)
         if (session?.user) {
-          const p = await fetchOrCreateProfile(session.user.id)
-          if (p && !p.onboarding_complete) {
-            navigate('/onboarding', { replace: true })
-          }
+          fetchOrCreateProfile(session.user.id).then((p) => {
+            if (p && !p.onboarding_complete) navigate('/onboarding', { replace: true })
+          }).catch(() => {})
+          fetchActiveResume(session.user.id).catch(() => {})
         } else {
           setProfile(null)
+          setResume(null)
         }
       }
     )
