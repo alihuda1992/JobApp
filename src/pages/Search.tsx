@@ -254,6 +254,22 @@ export function Search() {
         status: 'saved',
       })
       addSavedJobId(job.id)
+
+      if (job.match_score === null && resume?.parsed && job.description) {
+        supabase.functions
+          .invoke('ai-score-job', {
+            body: { resume_parsed: resume.parsed, job_description: job.description },
+          })
+          .then(({ data }) => {
+            if (data?.score !== undefined) {
+              supabase
+                .from('jobs')
+                .update({ match_score: data.score, match_breakdown: data.breakdown ?? null })
+                .eq('id', saved.id)
+              updateJobScore(job.id, data.score, data.breakdown ?? null)
+            }
+          })
+      }
     }
   }
 
