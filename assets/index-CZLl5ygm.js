@@ -177,14 +177,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           margin-left: var(--sidebar-width);
           flex: 1;
           overflow-y: auto;
-          padding: 32px;
           min-height: 100vh;
         }
 
         @media (max-width: 768px) {
           .app-main {
             margin-left: 0;
-            padding: 20px 16px 80px;
           }
         }
       `})]})}function mc({children:e}){let{user:t,loading:n}=lc();return n?null:t?(0,q.jsx)(q.Fragment,{children:e}):(0,q.jsx)(Nt,{to:`/login`,replace:!0})}var hc=`/JobApp/`;function gc(){return window.location.origin+hc}function _c(){let e=at(),[t,n]=(0,x.useState)(``),[r,i]=(0,x.useState)(``),[a,o]=(0,x.useState)(null),[s,c]=(0,x.useState)(!1),[l,u]=(0,x.useState)(null);async function d(n){n.preventDefault(),o(null),c(!0);let{data:i,error:a}=await K.auth.signInWithPassword({email:t,password:r});if(a){o(a.message),c(!1);return}if(i.user){let{data:t}=await K.from(`profiles`).select(`onboarding_complete`).eq(`id`,i.user.id).single();t&&!t.onboarding_complete?e(`/onboarding`,{replace:!0}):e(`/`,{replace:!0})}c(!1)}async function f(e){u(e),await K.auth.signInWithOAuth({provider:e,options:{redirectTo:gc()}}),u(null)}return(0,q.jsxs)(`div`,{className:`auth-page`,children:[(0,q.jsxs)(`div`,{className:`auth-card card`,children:[(0,q.jsx)(`h1`,{className:`auth-title`,children:`Welcome back`}),(0,q.jsx)(`p`,{className:`auth-subtitle`,children:`Sign in to your account`}),(0,q.jsxs)(`div`,{className:`oauth-group`,children:[(0,q.jsxs)(`button`,{type:`button`,className:`btn btn-oauth`,onClick:()=>f(`google`),disabled:!!l,children:[(0,q.jsx)(vc,{}),l===`google`?`Redirecting…`:`Continue with Google`]}),(0,q.jsxs)(`button`,{type:`button`,className:`btn btn-oauth`,onClick:()=>f(`github`),disabled:!!l,children:[(0,q.jsx)(yc,{}),l===`github`?`Redirecting…`:`Continue with GitHub`]})]}),(0,q.jsx)(`div`,{className:`auth-divider`,children:(0,q.jsx)(`span`,{children:`or`})}),(0,q.jsxs)(`form`,{onSubmit:d,className:`auth-form`,children:[(0,q.jsxs)(`div`,{className:`form-field`,children:[(0,q.jsx)(`label`,{className:`form-label`,htmlFor:`email`,children:`Email`}),(0,q.jsx)(`input`,{id:`email`,type:`email`,className:`input-base`,value:t,onChange:e=>n(e.target.value),placeholder:`you@example.com`,required:!0,autoComplete:`email`})]}),(0,q.jsxs)(`div`,{className:`form-field`,children:[(0,q.jsx)(`label`,{className:`form-label`,htmlFor:`password`,children:`Password`}),(0,q.jsx)(`input`,{id:`password`,type:`password`,className:`input-base`,value:r,onChange:e=>i(e.target.value),placeholder:`••••••••`,required:!0,autoComplete:`current-password`})]}),a&&(0,q.jsx)(`div`,{className:`auth-error`,children:a}),(0,q.jsx)(`button`,{type:`submit`,className:`btn btn-primary auth-submit`,disabled:s,children:s?`Signing in…`:`Sign in`})]}),(0,q.jsxs)(`p`,{className:`auth-switch`,children:[`No account?`,` `,(0,q.jsx)(On,{to:`/signup`,children:`Create one`})]})]}),(0,q.jsx)(`style`,{children:`
@@ -844,17 +842,18 @@ Character number: `+e.characterNumber},n.prototype.lineNumber=function(){return 
         }
       `})]})}var TS=[{key:`saved`,label:`Saved`,accent:`rgba(242,240,234,0.35)`},{key:`applied`,label:`Applied`,accent:`var(--color-accent)`},{key:`interviewing`,label:`Interviewing`,accent:`var(--color-secondary)`},{key:`offer`,label:`Offer`,accent:`var(--color-match-green)`},{key:`rejected`,label:`Rejected`,accent:`oklch(65% 0.18 25)`}],ES=TS.map(e=>e.key);function DS(e){return e===null?`var(--color-match-gray)`:e>=90?`var(--color-match-green)`:e>=70?`var(--color-match-amber)`:`var(--color-match-gray)`}function OS(e){if(!e)return``;let t=Date.now()-new Date(e).getTime(),n=Math.floor(t/864e5);return n===0?`Today`:n===1?`1d ago`:n<30?`${n}d ago`:`${Math.floor(n/30)}mo ago`}function kS({app:e,dragging:t,onDragStart:n,onDragEnd:r,onDelete:i}){let a=at(),o=e.job,s=o?.match_score??null,c=e.applied_at?OS(e.applied_at):OS(e.created_at);function l(t){t.stopPropagation(),i(e.id)}return(0,q.jsxs)(`div`,{className:`app-card card`,draggable:!0,onDragStart:()=>n(e.id),onDragEnd:r,onClick:()=>o&&a(`/jobs/${o.id}`),style:{opacity:t?.35:1,cursor:`grab`},children:[(0,q.jsxs)(`div`,{className:`app-card-header`,children:[(0,q.jsx)(`span`,{className:`app-card-title`,children:o?.title??`Unknown role`}),(0,q.jsx)(`button`,{className:`app-card-del`,onClick:l,title:`Remove`,children:`×`})]}),(o?.company||o?.location)&&(0,q.jsx)(`span`,{className:`app-card-company`,children:[o.company,o.location].filter(Boolean).join(` · `)}),(0,q.jsxs)(`div`,{className:`app-card-footer`,children:[s===null?(0,q.jsxs)(`div`,{className:`app-score-dots`,children:[(0,q.jsx)(`span`,{className:`app-score-dot`}),(0,q.jsx)(`span`,{className:`app-score-dot`}),(0,q.jsx)(`span`,{className:`app-score-dot`})]}):(0,q.jsxs)(`span`,{className:`app-card-score`,style:{color:DS(s)},children:[s,(0,q.jsx)(`span`,{className:`app-card-pct`,children:`%`})]}),c&&(0,q.jsx)(`span`,{className:`app-card-date`,children:c})]})]})}function AS({column:e,apps:t,dragId:n,isOver:r,onDragOver:i,onDragLeave:a,onDrop:o,onDragStart:s,onDragEnd:c,onDelete:l}){return(0,q.jsxs)(`div`,{className:`kanban-col${r?` kanban-col-over`:``}`,onDragOver:t=>{t.preventDefault(),i(e.key)},onDragLeave:a,onDrop:t=>{t.preventDefault(),o(e.key)},children:[(0,q.jsxs)(`div`,{className:`kanban-col-header`,children:[(0,q.jsx)(`span`,{className:`kanban-dot`,style:{background:e.accent}}),(0,q.jsx)(`span`,{className:`kanban-label`,children:e.label}),(0,q.jsx)(`span`,{className:`kanban-count`,children:t.length})]}),(0,q.jsxs)(`div`,{className:`kanban-col-body`,children:[t.map(e=>(0,q.jsx)(kS,{app:e,dragging:n===e.id,onDragStart:s,onDragEnd:c,onDelete:l},e.id)),t.length===0&&(0,q.jsx)(`div`,{className:`kanban-empty`,children:`Drop cards here`})]})]})}function jS(){let{applications:e,setApplications:t,upsertApplication:n,removeApplication:r,resume:i}=cc(),[a,o]=(0,x.useState)(!0),[s,c]=(0,x.useState)(null),[l,u]=(0,x.useState)(null);(0,x.useEffect)(()=>{let e=!1,a=null;async function s(t,r){let i=t.filter(e=>e.job&&e.job.match_score===null&&e.job.description);if(i.length)for(let t=0;t<i.length&&!e;t+=3)await Promise.all(i.slice(t,t+3).map(async t=>{let{data:i}=await K.functions.invoke(`ai-score-job`,{body:{resume_parsed:r,job_description:t.job.description}});i?.score!==void 0&&!e&&(await K.from(`jobs`).update({match_score:i.score,match_breakdown:i.breakdown??null}).eq(`id`,t.job.id),n({...t,job:{...t.job,match_score:i.score,match_breakdown:i.breakdown??null}}))}))}async function c(){let{data:{user:c}}=await K.auth.getUser();if(!c||e){o(!1);return}let[l,u]=await Promise.all([K.from(`applications`).select(`*, job:jobs!job_id(*)`).eq(`user_id`,c.id).order(`created_at`,{ascending:!1}),K.from(`resumes`).select(`parsed`).eq(`user_id`,c.id).eq(`is_active`,!0).order(`created_at`,{ascending:!1}).limit(1).maybeSingle()]);if(e)return;l.error&&console.error(`Pipeline fetch error:`,l.error);let d=l.data??[];t(d),o(!1);let f=u.data?.parsed??i?.parsed;f&&s(d,f),a=K.channel(`pipeline-apps`).on(`postgres_changes`,{event:`*`,schema:`public`,table:`applications`,filter:`user_id=eq.${c.id}`},async e=>{if(e.eventType===`DELETE`)r(e.old.id);else{let{data:t}=await K.from(`applications`).select(`*, job:jobs!job_id(*)`).eq(`id`,e.new.id).single();t&&n(t)}}).subscribe()}return c(),()=>{e=!0,a&&K.removeChannel(a)}},[]);async function d(t){if(!s)return;let r=e.find(e=>e.id===s);if(!r||r.status===t)return;let i={status:t};t===`applied`&&!r.applied_at&&(i.applied_at=new Date().toISOString()),n({...r,status:t,applied_at:i.applied_at??r.applied_at}),await K.from(`applications`).update(i).eq(`id`,s)}async function f(e){r(e),await K.from(`applications`).delete().eq(`id`,e)}let p=e.filter(e=>ES.includes(e.status)),m=e=>p.filter(t=>t.status===e).sort((e,t)=>{let n=e.job?.match_score??-1;return(t.job?.match_score??-1)-n});return(0,q.jsxs)(`div`,{className:`pipeline-page`,children:[(0,q.jsxs)(`div`,{className:`pipeline-header`,children:[(0,q.jsx)(`h1`,{className:`page-title`,children:`Pipeline`}),!a&&(0,q.jsxs)(`span`,{className:`pipeline-total`,children:[p.length,` application`,p.length===1?``:`s`]})]}),a?(0,q.jsx)(`div`,{className:`pipeline-loading`,children:TS.map(e=>(0,q.jsxs)(`div`,{className:`kanban-col kanban-col-skeleton`,children:[(0,q.jsxs)(`div`,{className:`kanban-col-header`,children:[(0,q.jsx)(`span`,{className:`kanban-dot`,style:{background:e.accent}}),(0,q.jsx)(`span`,{className:`kanban-label`,children:e.label})]}),(0,q.jsx)(`div`,{className:`kanban-col-body`,children:Array.from({length:2}).map((e,t)=>(0,q.jsxs)(`div`,{className:`app-card card sk-card`,children:[(0,q.jsx)(`div`,{className:`sk-line sk-title`}),(0,q.jsx)(`div`,{className:`sk-line sk-sub`})]},t))})]},e.key))}):(0,q.jsx)(`div`,{className:`kanban-board`,children:TS.map(e=>(0,q.jsx)(AS,{column:e,apps:m(e.key),dragId:s,isOver:l===e.key&&s!==null,onDragOver:u,onDragLeave:()=>u(null),onDrop:e=>{d(e),u(null),c(null)},onDragStart:c,onDragEnd:()=>{c(null),u(null)},onDelete:f},e.key))}),(0,q.jsx)(`style`,{children:`
         .pipeline-page {
-          padding: 0;
-          height: calc(100vh - 64px);
+          padding: 32px;
+          height: 100vh;
           display: flex;
           flex-direction: column;
           overflow: hidden;
+          box-sizing: border-box;
         }
         .pipeline-header {
           display: flex;
           align-items: baseline;
           gap: 12px;
-          padding: 0 0 20px 0;
+          padding-bottom: 20px;
           flex-shrink: 0;
         }
         .page-title { font-size: 28px; }
@@ -1154,78 +1153,100 @@ Character number: `+e.characterNumber},n.prototype.lineNumber=function(){return 
           letter-spacing: 0.5px; color: rgba(242,240,234,0.55);
         }
         .jd-textarea { min-height: 200px; resize: vertical; }
-      `})]})}function US(e){return e===null?`var(--color-match-gray)`:e>=90?`var(--color-match-green)`:e>=70?`var(--color-match-amber)`:`var(--color-match-gray)`}function WS({label:e,value:t}){let n=US(t);return(0,q.jsxs)(`div`,{className:`breakdown-row`,children:[(0,q.jsxs)(`div`,{className:`breakdown-label`,children:[(0,q.jsx)(`span`,{children:e}),(0,q.jsx)(`span`,{style:{color:n,fontFamily:`"DM Mono", monospace`,fontSize:12},children:t})]}),(0,q.jsx)(`div`,{className:`breakdown-track`,children:(0,q.jsx)(`div`,{className:`breakdown-fill`,style:{width:`${t}%`,background:n}})})]})}function GS(){let{id:e}=lt(),t=at(),{searchResults:n,resume:r,savedJobIds:i,addSavedJobId:a}=cc(),[o,s]=(0,x.useState)(null),[c,l]=(0,x.useState)(!0),[u,d]=(0,x.useState)(!1),[f,p]=(0,x.useState)(!1),[m,h]=(0,x.useState)([]),[g,_]=(0,x.useState)(new Set),[v,y]=(0,x.useState)(!1),[b,S]=(0,x.useState)(null);(0,x.useEffect)(()=>{e&&C(e)},[e]);async function C(e){l(!0);let t=n.find(t=>t.id===e);if(t){s(t),d(i.has(t.id)),l(!1);return}let{data:r}=await K.from(`jobs`).select(`*`).eq(`id`,e).single();if(r){s(r);let{data:t}=await K.from(`applications`).select(`id`).eq(`job_id`,e).maybeSingle();d(!!t)}l(!1)}async function w(){if(!o||f)return;p(!0);let{data:{user:e}}=await K.auth.getUser();if(!e){p(!1);return}let t=o.id;if(!o.user_id){let{data:n}=await K.from(`jobs`).insert({user_id:e.id,source:o.source,external_id:o.external_id,title:o.title,company:o.company,location:o.location,salary_min:o.salary_min==null?null:Math.round(o.salary_min),salary_max:o.salary_max==null?null:Math.round(o.salary_max),salary_currency:o.salary_currency,description:o.description,tags:o.tags,url:o.url,posted_at:o.posted_at,match_score:o.match_score,match_breakdown:o.match_breakdown}).select().single();n&&(t=n.id)}await K.from(`applications`).insert({user_id:e.id,job_id:t,status:`saved`}),a(o.id),d(!0),p(!1)}async function T(){if(!(!o||!r?.parsed)){y(!0),S(null);try{let{data:e,error:t}=await K.functions.invoke(`ai-tailoring-suggestions`,{body:{resume_parsed:r.parsed,job_description:o.description}});if(t)throw t;h(e?.suggestions??[]),_(new Set)}catch{S(`Could not load suggestions — try again.`)}finally{y(!1)}}}if(c)return(0,q.jsx)(`div`,{className:`jd-page`,children:(0,q.jsx)(`div`,{className:`jd-loading`,children:`Loading job…`})});if(!o)return(0,q.jsxs)(`div`,{className:`jd-page`,children:[(0,q.jsx)(`button`,{className:`back-link`,onClick:()=>t(-1),children:`← Back`}),(0,q.jsx)(`p`,{style:{color:`rgba(242,240,234,0.4)`,marginTop:24},children:`Job not found.`})]});let E=o.match_breakdown,D=m.filter((e,t)=>!g.has(t));return(0,q.jsxs)(`div`,{className:`jd-page`,children:[(0,q.jsx)(`button`,{className:`back-link`,onClick:()=>t(-1),children:`← Back`}),(0,q.jsxs)(`div`,{className:`jd-layout`,children:[(0,q.jsxs)(`div`,{className:`jd-main`,children:[(0,q.jsx)(`h1`,{className:`jd-title`,children:o.title}),(0,q.jsxs)(`div`,{className:`jd-meta`,children:[o.company&&(0,q.jsx)(`span`,{className:`jd-meta-item`,children:o.company}),o.location&&(0,q.jsx)(`span`,{className:`jd-meta-item`,children:o.location}),(o.salary_min||o.salary_max)&&(0,q.jsx)(`span`,{className:`jd-meta-item mono`,children:o.salary_min&&o.salary_max?`$${Math.round(o.salary_min/1e3)}k – $${Math.round(o.salary_max/1e3)}k`:o.salary_min?`$${Math.round(o.salary_min/1e3)}k+`:`Up to $${Math.round(o.salary_max/1e3)}k`}),o.url&&(0,q.jsx)(`a`,{href:o.url,target:`_blank`,rel:`noopener noreferrer`,className:`jd-meta-item jd-link`,children:`View original ↗`})]}),o.match_score!==null&&(0,q.jsxs)(`div`,{className:`jd-score-block`,children:[(0,q.jsxs)(`div`,{className:`jd-score-number`,style:{color:US(o.match_score)},children:[o.match_score,(0,q.jsx)(`span`,{style:{fontSize:20,fontWeight:500,opacity:.7},children:`%`}),(0,q.jsx)(`span`,{className:`jd-score-label`,children:`match`})]}),E&&(0,q.jsxs)(`div`,{className:`jd-breakdown`,children:[(0,q.jsx)(WS,{label:`Skills`,value:E.skills}),(0,q.jsx)(WS,{label:`Experience`,value:E.experience}),(0,q.jsx)(WS,{label:`Keywords`,value:E.keywords}),(0,q.jsx)(WS,{label:`Seniority`,value:E.seniority}),(0,q.jsx)(WS,{label:`Industry`,value:E.industry})]})]}),(0,q.jsxs)(`div`,{className:`jd-description`,children:[(0,q.jsx)(`h2`,{className:`jd-section-title`,children:`Job Description`}),(0,q.jsx)(`pre`,{className:`jd-body`,children:o.description})]})]}),(0,q.jsx)(`div`,{className:`jd-panel`,children:(0,q.jsxs)(`div`,{className:`jd-panel-inner card`,children:[(0,q.jsx)(`button`,{className:`btn ${u?`btn-ghost`:`btn-primary`} jd-pipeline-btn`,onClick:w,disabled:u||f,children:f?`Adding…`:u?`In Pipeline ✓`:`Add to Pipeline`}),(0,q.jsx)(`button`,{className:`btn btn-ghost jd-cover-btn`,onClick:()=>t(`/cover/${o.id}`),disabled:!u,title:u?void 0:`Save to pipeline first`,children:`Generate Cover Letter`}),(0,q.jsxs)(`div`,{className:`jd-suggestions`,children:[(0,q.jsxs)(`div`,{className:`suggestions-header`,children:[(0,q.jsx)(`span`,{className:`ai-indicator`,children:`✦`}),(0,q.jsx)(`span`,{children:`Tailoring Suggestions`})]}),D.length===0&&!v&&(0,q.jsx)(`button`,{className:`btn btn-ghost suggestions-trigger`,onClick:T,disabled:!r?.parsed,title:r?.parsed?void 0:`Upload your resume first`,children:v?`Analysing…`:`Get suggestions ✦`}),v&&(0,q.jsx)(`p`,{className:`suggestions-loading`,children:`Analysing your fit…`}),b&&(0,q.jsx)(`p`,{className:`suggestions-error`,children:b}),D.length>0&&(0,q.jsxs)(`ul`,{className:`suggestions-list`,children:[m.map((e,t)=>g.has(t)?null:(0,q.jsxs)(`li`,{className:`suggestion-chip`,children:[(0,q.jsx)(`span`,{children:e}),(0,q.jsx)(`button`,{className:`chip-dismiss`,onClick:()=>_(e=>new Set([...e,t])),children:`×`})]},t)),(0,q.jsx)(`button`,{className:`btn btn-ghost suggestions-trigger`,onClick:T,children:`Refresh ✦`})]})]})]})})]}),(0,q.jsx)(`style`,{children:`
-        .jd-page { padding: 32px; }
+      `})]})}function US(e){return e===null?`var(--color-match-gray)`:e>=90?`var(--color-match-green)`:e>=70?`var(--color-match-amber)`:`var(--color-match-gray)`}function WS({label:e,value:t}){let n=US(t);return(0,q.jsxs)(`div`,{className:`breakdown-row`,children:[(0,q.jsxs)(`div`,{className:`breakdown-label`,children:[(0,q.jsx)(`span`,{children:e}),(0,q.jsx)(`span`,{style:{color:n,fontFamily:`"DM Mono", monospace`,fontSize:12},children:t})]}),(0,q.jsx)(`div`,{className:`breakdown-track`,children:(0,q.jsx)(`div`,{className:`breakdown-fill`,style:{width:`${t}%`,background:n}})})]})}function GS(){let{id:e}=lt(),t=at(),{searchResults:n,resume:r,savedJobIds:i,addSavedJobId:a}=cc(),[o,s]=(0,x.useState)(null),[c,l]=(0,x.useState)(!0),[u,d]=(0,x.useState)(!1),[f,p]=(0,x.useState)(!1),[m,h]=(0,x.useState)([]),[g,_]=(0,x.useState)(new Set),[v,y]=(0,x.useState)(!1),[b,S]=(0,x.useState)(null);(0,x.useEffect)(()=>{e&&C(e)},[e]);async function C(e){l(!0);let t=n.find(t=>t.id===e);if(t){s(t),d(i.has(t.id)),l(!1);return}let{data:r}=await K.from(`jobs`).select(`*`).eq(`id`,e).single();if(r){s(r);let{data:t}=await K.from(`applications`).select(`id`).eq(`job_id`,e).maybeSingle();d(!!t)}l(!1)}async function w(){if(!o||f)return;p(!0);let{data:{user:e}}=await K.auth.getUser();if(!e){p(!1);return}let t=o.id;if(!o.user_id){let{data:n}=await K.from(`jobs`).insert({user_id:e.id,source:o.source,external_id:o.external_id,title:o.title,company:o.company,location:o.location,salary_min:o.salary_min==null?null:Math.round(o.salary_min),salary_max:o.salary_max==null?null:Math.round(o.salary_max),salary_currency:o.salary_currency,description:o.description,tags:o.tags,url:o.url,posted_at:o.posted_at,match_score:o.match_score,match_breakdown:o.match_breakdown}).select().single();n&&(t=n.id)}await K.from(`applications`).insert({user_id:e.id,job_id:t,status:`saved`}),a(o.id),d(!0),p(!1)}async function T(){if(!(!o||!r?.parsed)){y(!0),S(null);try{let{data:e,error:t}=await K.functions.invoke(`ai-tailoring-suggestions`,{body:{resume_parsed:r.parsed,job_description:o.description}});if(t)throw t;h(e?.suggestions??[]),_(new Set)}catch{S(`Could not load suggestions — try again.`)}finally{y(!1)}}}if(c)return(0,q.jsx)(`div`,{className:`jd-page`,children:(0,q.jsx)(`div`,{className:`jd-loading`,children:`Loading job…`})});if(!o)return(0,q.jsxs)(`div`,{className:`jd-page`,children:[(0,q.jsx)(`button`,{className:`back-link`,onClick:()=>t(-1),children:`← Back`}),(0,q.jsx)(`p`,{style:{color:`rgba(242,240,234,0.4)`,marginTop:24},children:`Job not found.`})]});let E=o.match_breakdown,D=m.filter((e,t)=>!g.has(t));return(0,q.jsxs)(`div`,{className:`jd-page`,children:[(0,q.jsx)(`button`,{className:`back-link`,onClick:()=>t(-1),children:`← Back`}),(0,q.jsxs)(`div`,{className:`jd-layout`,children:[(0,q.jsxs)(`div`,{className:`jd-main`,children:[(0,q.jsx)(`h1`,{className:`jd-title`,children:o.title}),(0,q.jsxs)(`div`,{className:`jd-meta`,children:[o.company&&(0,q.jsx)(`span`,{className:`jd-meta-item`,children:o.company}),o.location&&(0,q.jsx)(`span`,{className:`jd-meta-item`,children:o.location}),(o.salary_min||o.salary_max)&&(0,q.jsx)(`span`,{className:`jd-meta-item mono`,children:o.salary_min&&o.salary_max?`$${Math.round(o.salary_min/1e3)}k – $${Math.round(o.salary_max/1e3)}k`:o.salary_min?`$${Math.round(o.salary_min/1e3)}k+`:`Up to $${Math.round(o.salary_max/1e3)}k`}),o.url&&(0,q.jsx)(`a`,{href:o.url,target:`_blank`,rel:`noopener noreferrer`,className:`jd-meta-item jd-link`,children:`View original ↗`})]}),o.match_score!==null&&(0,q.jsxs)(`div`,{className:`jd-score-block`,children:[(0,q.jsxs)(`div`,{className:`jd-score-number`,style:{color:US(o.match_score)},children:[(0,q.jsxs)(`span`,{className:`jd-score-val`,children:[o.match_score,(0,q.jsx)(`span`,{className:`jd-score-pct`,children:`%`})]}),(0,q.jsx)(`span`,{className:`jd-score-label`,children:`match`})]}),E&&(0,q.jsxs)(`div`,{className:`jd-breakdown`,children:[(0,q.jsx)(WS,{label:`Skills`,value:E.skills}),(0,q.jsx)(WS,{label:`Experience`,value:E.experience}),(0,q.jsx)(WS,{label:`Keywords`,value:E.keywords}),(0,q.jsx)(WS,{label:`Seniority`,value:E.seniority}),(0,q.jsx)(WS,{label:`Industry`,value:E.industry})]})]}),(0,q.jsxs)(`div`,{className:`jd-description`,children:[(0,q.jsx)(`h2`,{className:`jd-section-title`,children:`Job Description`}),(0,q.jsx)(`div`,{className:`jd-body`,children:o.description})]})]}),(0,q.jsx)(`div`,{className:`jd-panel`,children:(0,q.jsxs)(`div`,{className:`jd-panel-inner card`,children:[(0,q.jsx)(`button`,{className:`btn ${u?`btn-ghost`:`btn-primary`} jd-pipeline-btn`,onClick:w,disabled:u||f,children:f?`Adding…`:u?`In Pipeline ✓`:`Add to Pipeline`}),(0,q.jsx)(`button`,{className:`btn btn-ghost jd-cover-btn`,onClick:()=>t(`/cover/${o.id}`),disabled:!u,title:u?void 0:`Save to pipeline first`,children:`Generate Cover Letter`}),(0,q.jsxs)(`div`,{className:`jd-suggestions`,children:[(0,q.jsxs)(`div`,{className:`suggestions-header`,children:[(0,q.jsx)(`span`,{className:`ai-indicator`,children:`✦`}),(0,q.jsx)(`span`,{children:`Tailoring Suggestions`})]}),D.length===0&&!v&&(0,q.jsx)(`button`,{className:`btn btn-ghost suggestions-trigger`,onClick:T,disabled:!r?.parsed,title:r?.parsed?void 0:`Upload your resume first`,children:v?`Analysing…`:`Get suggestions ✦`}),v&&(0,q.jsx)(`p`,{className:`suggestions-loading`,children:`Analysing your fit…`}),b&&(0,q.jsx)(`p`,{className:`suggestions-error`,children:b}),D.length>0&&(0,q.jsxs)(`ul`,{className:`suggestions-list`,children:[m.map((e,t)=>g.has(t)?null:(0,q.jsxs)(`li`,{className:`suggestion-chip`,children:[(0,q.jsx)(`span`,{children:e}),(0,q.jsx)(`button`,{className:`chip-dismiss`,onClick:()=>_(e=>new Set([...e,t])),children:`×`})]},t)),(0,q.jsx)(`button`,{className:`btn btn-ghost suggestions-trigger`,onClick:T,children:`Refresh ✦`})]})]})]})})]}),(0,q.jsx)(`style`,{children:`
+        .jd-page { padding: 32px; max-width: 1200px; }
         .back-link {
-          background: none; border: none; color: rgba(242,240,234,0.5);
-          font-size: 13px; cursor: pointer; margin-bottom: 24px; display: inline-block;
-          padding: 0;
+          background: none; border: none; color: rgba(242,240,234,0.45);
+          font-size: 13px; cursor: pointer; margin-bottom: 28px; display: inline-block; padding: 0;
         }
         .back-link:hover { color: var(--color-text); }
         .jd-loading { color: rgba(242,240,234,0.4); font-size: 13px; margin-top: 32px; }
+
         .jd-layout {
-          display: grid; grid-template-columns: 1fr 300px; gap: 28px; align-items: start;
+          display: grid; grid-template-columns: 1fr 280px; gap: 32px; align-items: start;
         }
-        @media (max-width: 768px) {
+        @media (max-width: 860px) {
           .jd-layout { grid-template-columns: 1fr; }
           .jd-panel { order: -1; }
         }
-        .jd-title { font-size: 30px; margin-bottom: 12px; line-height: 1.2; }
-        .jd-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+
+        .jd-title { font-size: 28px; margin-bottom: 14px; line-height: 1.25; }
+        .jd-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 24px; }
         .jd-meta-item {
-          font-size: 13px; color: rgba(242,240,234,0.6);
+          font-size: 12px; color: rgba(242,240,234,0.6);
           background: rgba(255,255,255,0.05); border: 1px solid var(--color-border);
-          border-radius: 20px; padding: 3px 10px;
+          border-radius: 20px; padding: 3px 11px;
         }
         .jd-link { color: var(--color-accent) !important; text-decoration: none; }
         .mono { font-family: "DM Mono", monospace; }
+
+        /* Score block */
         .jd-score-block {
-          display: flex; gap: 20px; align-items: flex-start;
-          padding: 16px; border-radius: var(--radius-card);
-          background: rgba(255,255,255,0.03); border: 1px solid var(--color-border);
-          margin-bottom: 24px;
+          display: flex; gap: 24px; align-items: center;
+          padding: 20px; border-radius: var(--radius-card);
+          background: rgba(255,255,255,0.025); border: 1px solid var(--color-border);
+          margin-bottom: 28px;
         }
         .jd-score-number {
-          font-size: 48px; font-weight: 700; font-family: "DM Mono", monospace;
-          line-height: 1; display: flex; flex-direction: column; align-items: center;
-          min-width: 70px;
+          display: flex; flex-direction: column; align-items: center;
+          min-width: 76px; flex-shrink: 0;
         }
-        .jd-score-label { font-size: 11px; font-weight: 400; opacity: 0.6; margin-top: 2px; font-family: "DM Sans", sans-serif; }
-        .jd-breakdown { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-        .breakdown-row { display: flex; flex-direction: column; gap: 4px; }
-        .breakdown-label { display: flex; justify-content: space-between; font-size: 11px; color: rgba(242,240,234,0.55); }
-        .breakdown-track { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
-        .breakdown-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
-        .jd-section-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; font-family: "DM Sans", sans-serif; }
-        .jd-description { margin-top: 4px; }
+        .jd-score-val {
+          font-size: 52px; font-weight: 700; font-family: "DM Mono", monospace; line-height: 1;
+        }
+        .jd-score-pct { font-size: 22px; font-weight: 500; opacity: 0.65; }
+        .jd-score-label {
+          font-size: 11px; font-weight: 400; opacity: 0.5; margin-top: 4px;
+          font-family: "DM Sans", sans-serif; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .jd-breakdown { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .breakdown-row { display: flex; flex-direction: column; gap: 5px; }
+        .breakdown-label {
+          display: flex; justify-content: space-between;
+          font-size: 11px; color: rgba(242,240,234,0.5);
+        }
+        .breakdown-track { height: 5px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+        .breakdown-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+
+        /* Description */
+        .jd-description { margin-top: 0; }
+        .jd-section-title {
+          font-size: 12px; font-weight: 600; margin-bottom: 14px;
+          font-family: "DM Sans", sans-serif; text-transform: uppercase;
+          letter-spacing: 0.5px; color: rgba(242,240,234,0.45);
+        }
         .jd-body {
-          white-space: pre-wrap; font-family: inherit; font-size: 13px;
-          line-height: 1.7; color: rgba(242,240,234,0.75);
-          max-height: 600px; overflow-y: auto;
+          font-size: 13px; line-height: 1.8; color: rgba(242,240,234,0.72);
+          max-height: 560px; overflow-y: auto; white-space: pre-wrap;
         }
-        .jd-panel-inner { padding: 20px; display: flex; flex-direction: column; gap: 12px; position: sticky; top: 24px; }
+
+        /* Right panel */
+        .jd-panel-inner {
+          padding: 20px; display: flex; flex-direction: column; gap: 10px;
+          position: sticky; top: 24px;
+        }
         .jd-pipeline-btn, .jd-cover-btn { width: 100%; padding: 10px; }
-        .jd-suggestions { margin-top: 4px; }
+        .jd-suggestions { margin-top: 8px; }
         .suggestions-header {
           display: flex; align-items: center; gap: 6px;
-          font-size: 12px; font-weight: 600; text-transform: uppercase;
-          letter-spacing: 0.5px; color: rgba(242,240,234,0.55); margin-bottom: 10px;
+          font-size: 11px; font-weight: 600; text-transform: uppercase;
+          letter-spacing: 0.5px; color: rgba(242,240,234,0.45); margin-bottom: 10px;
         }
         .suggestions-trigger { width: 100%; font-size: 12px; padding: 7px; }
         .suggestions-loading { font-size: 12px; color: rgba(242,240,234,0.4); text-align: center; padding: 8px 0; }
         .suggestions-error { font-size: 12px; color: #f87171; }
-        .suggestions-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .suggestions-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
         .suggestion-chip {
           display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
-          background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);
+          background: rgba(255,255,255,0.03); border: 1px solid var(--color-border);
           border-radius: var(--radius-btn); padding: 8px 10px; font-size: 12px;
-          line-height: 1.5; color: rgba(242,240,234,0.8);
+          line-height: 1.5; color: rgba(242,240,234,0.75);
         }
         .chip-dismiss {
-          background: none; border: none; color: rgba(242,240,234,0.3);
+          background: none; border: none; color: rgba(242,240,234,0.25);
           font-size: 14px; cursor: pointer; flex-shrink: 0; padding: 0; line-height: 1;
         }
-        .chip-dismiss:hover { color: rgba(242,240,234,0.7); }
+        .chip-dismiss:hover { color: rgba(242,240,234,0.65); }
       `})]})}_p.workerSrc=`https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${yp}/pdf.worker.min.mjs`;async function KS(e){if(e.type===`application/pdf`){let t=await vp({data:await e.arrayBuffer()}).promise,n=[];for(let e=1;e<=t.numPages;e++){let r=await(await t.getPage(e)).getTextContent();n.push(r.items.map(e=>`str`in e?e.str:``).join(` `))}return n.join(`
 `)}else{let t=await e.arrayBuffer();return(await yS.extractRawText({arrayBuffer:t})).value}}function qS({loading:e,suggestion:t,onAccept:n,onDismiss:r}){let[i,a]=(0,x.useState)(t??``);return(0,x.useEffect)(()=>{t&&a(t)},[t]),e?(0,q.jsxs)(`div`,{className:`rw-panel rw-loading`,children:[(0,q.jsxs)(`div`,{className:`rw-dots`,children:[(0,q.jsx)(`span`,{}),(0,q.jsx)(`span`,{}),(0,q.jsx)(`span`,{})]}),(0,q.jsx)(`span`,{children:`Rewriting…`})]}):t?(0,q.jsxs)(`div`,{className:`rw-panel`,children:[(0,q.jsxs)(`div`,{className:`rw-panel-header`,children:[(0,q.jsx)(`span`,{className:`ai-indicator`,children:`✦`}),(0,q.jsx)(`span`,{children:`AI Suggestion`}),(0,q.jsxs)(`div`,{className:`rw-actions`,children:[(0,q.jsx)(`button`,{className:`btn btn-primary rw-btn`,onClick:()=>n(i),children:`Accept`}),(0,q.jsx)(`button`,{className:`btn btn-ghost rw-btn`,onClick:r,children:`Dismiss`})]})]}),(0,q.jsx)(`textarea`,{className:`rw-textarea`,value:i,onChange:e=>a(e.target.value),rows:6})]}):null}function JS({title:e,onRewrite:t,rewriteDisabled:n,children:r}){return(0,q.jsxs)(`div`,{className:`res-section card`,children:[(0,q.jsxs)(`div`,{className:`res-section-header`,children:[(0,q.jsx)(`h2`,{className:`res-section-title`,children:e}),t&&(0,q.jsx)(`button`,{className:`btn btn-ghost res-rewrite-btn`,onClick:t,disabled:n,children:`AI Rewrite ✦`})]}),r]})}function YS(){let e=at(),{resume:t,setResume:n}=cc(),[r,i]=(0,x.useState)(null),[a,o]=(0,x.useState)(null),[s,c]=(0,x.useState)(!1),[l,u]=(0,x.useState)(!0),[d,f]=(0,x.useState)(!1),[p,m]=(0,x.useState)(null),[h,g]=(0,x.useState)(!1),[_,v]=(0,x.useState)(``),[y,b]=(0,x.useState)(null),[S,C]=(0,x.useState)(null),[w,T]=(0,x.useState)(``),[E,D]=(0,x.useState)(null),[O,k]=(0,x.useState)(!1),[A,j]=(0,x.useState)(null);(0,x.useEffect)(()=>{M()},[]);async function M(){u(!0);let{data:{user:r}}=await K.auth.getUser();if(!r){e(`/login`);return}let{data:a}=await K.from(`resumes`).select(`*`).eq(`user_id`,r.id).eq(`is_active`,!0).order(`created_at`,{ascending:!1}).limit(1).maybeSingle();if(a){let e=a;i(e),o(e.parsed??t?.parsed??null),n(e)}else t&&(i(t),o(t.parsed));u(!1)}function N(e){o(t=>t&&e(t)),c(!0)}async function P(){!r||!a||d||(f(!0),await K.from(`resumes`).update({parsed:a}).eq(`id`,r.id),n({...r,parsed:a}),c(!1),f(!1))}function F(e,t){C(e),T(t),R()}function I(e){if(a){if(e===`summary`)N(e=>({...e,summary:w}));else if(e===`skills`){let e=w.split(/,|\n/).map(e=>e.trim()).filter(Boolean);N(t=>({...t,skills:e}))}else if(e===`certifications`){let e=w.split(`
 `).map(e=>e.trim()).filter(Boolean);N(t=>({...t,certifications:e}))}else if(e.startsWith(`exp-`)){let t=parseInt(e.split(`-`)[1]),n=w.split(`
