@@ -1211,4 +1211,188 @@ Character number: `+e.characterNumber},n.prototype.lineNumber=function(){return 
           font-size: 14px; cursor: pointer; flex-shrink: 0; padding: 0; line-height: 1;
         }
         .chip-dismiss:hover { color: rgba(242,240,234,0.7); }
-      `})]})}function KS(){return(0,q.jsxs)(`div`,{children:[(0,q.jsx)(`h1`,{style:{fontSize:28,marginBottom:8},children:`Resume`}),(0,q.jsx)(`p`,{style:{color:`rgba(242,240,234,0.45)`,fontSize:13},children:`Upload, parse, and edit your resume — coming in Sprint 5.`})]})}function qS(){let{jobId:e}=lt();return(0,q.jsxs)(`div`,{children:[(0,q.jsx)(`h1`,{style:{fontSize:28,marginBottom:8},children:`Cover Letter`}),(0,q.jsxs)(`p`,{style:{color:`rgba(242,240,234,0.45)`,fontSize:13},children:[`AI cover letter generator for job `,e,` — coming in Sprint 5.`]})]})}function JS(){return(0,q.jsxs)(`div`,{children:[(0,q.jsx)(`h1`,{style:{fontSize:28,marginBottom:8},children:`Settings`}),(0,q.jsx)(`p`,{style:{color:`rgba(242,240,234,0.45)`,fontSize:13},children:`Profile, preferences, and account management — coming in Sprint 6.`})]})}function YS(){return(0,q.jsx)(Tn,{basename:`/JobApp`,children:(0,q.jsxs)(Lt,{children:[(0,q.jsx)(Ft,{path:`/login`,element:(0,q.jsx)(_c,{})}),(0,q.jsx)(Ft,{path:`/signup`,element:(0,q.jsx)(Sc,{})}),(0,q.jsx)(Ft,{path:`/onboarding`,element:(0,q.jsx)(mc,{children:(0,q.jsx)(wS,{})})}),(0,q.jsxs)(Ft,{element:(0,q.jsx)(mc,{children:(0,q.jsx)(pc,{})}),children:[(0,q.jsx)(Ft,{index:!0,element:(0,q.jsx)(jS,{})}),(0,q.jsx)(Ft,{path:`/search`,element:(0,q.jsx)(HS,{})}),(0,q.jsx)(Ft,{path:`/jobs/:id`,element:(0,q.jsx)(GS,{})}),(0,q.jsx)(Ft,{path:`/resume`,element:(0,q.jsx)(KS,{})}),(0,q.jsx)(Ft,{path:`/cover/:jobId`,element:(0,q.jsx)(qS,{})}),(0,q.jsx)(Ft,{path:`/settings`,element:(0,q.jsx)(JS,{})})]}),(0,q.jsx)(Ft,{path:`*`,element:(0,q.jsx)(Nt,{to:`/`,replace:!0})})]})})}(0,S.createRoot)(document.getElementById(`root`)).render((0,q.jsx)(x.StrictMode,{children:(0,q.jsx)(YS,{})}));
+      `})]})}_p.workerSrc=`https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${yp}/pdf.worker.min.mjs`;async function KS(e){if(e.type===`application/pdf`){let t=await vp({data:await e.arrayBuffer()}).promise,n=[];for(let e=1;e<=t.numPages;e++){let r=await(await t.getPage(e)).getTextContent();n.push(r.items.map(e=>`str`in e?e.str:``).join(` `))}return n.join(`
+`)}else{let t=await e.arrayBuffer();return(await yS.extractRawText({arrayBuffer:t})).value}}function qS({loading:e,suggestion:t,onAccept:n,onDismiss:r}){let[i,a]=(0,x.useState)(t??``);return(0,x.useEffect)(()=>{t&&a(t)},[t]),e?(0,q.jsxs)(`div`,{className:`rw-panel rw-loading`,children:[(0,q.jsxs)(`div`,{className:`rw-dots`,children:[(0,q.jsx)(`span`,{}),(0,q.jsx)(`span`,{}),(0,q.jsx)(`span`,{})]}),(0,q.jsx)(`span`,{children:`Rewriting…`})]}):t?(0,q.jsxs)(`div`,{className:`rw-panel`,children:[(0,q.jsxs)(`div`,{className:`rw-panel-header`,children:[(0,q.jsx)(`span`,{className:`ai-indicator`,children:`✦`}),(0,q.jsx)(`span`,{children:`AI Suggestion`}),(0,q.jsxs)(`div`,{className:`rw-actions`,children:[(0,q.jsx)(`button`,{className:`btn btn-primary rw-btn`,onClick:()=>n(i),children:`Accept`}),(0,q.jsx)(`button`,{className:`btn btn-ghost rw-btn`,onClick:r,children:`Dismiss`})]})]}),(0,q.jsx)(`textarea`,{className:`rw-textarea`,value:i,onChange:e=>a(e.target.value),rows:6})]}):null}function JS({title:e,onRewrite:t,rewriteDisabled:n,children:r}){return(0,q.jsxs)(`div`,{className:`res-section card`,children:[(0,q.jsxs)(`div`,{className:`res-section-header`,children:[(0,q.jsx)(`h2`,{className:`res-section-title`,children:e}),t&&(0,q.jsx)(`button`,{className:`btn btn-ghost res-rewrite-btn`,onClick:t,disabled:n,children:`AI Rewrite ✦`})]}),r]})}function YS(){let e=at(),{resume:t,setResume:n}=cc(),[r,i]=(0,x.useState)(null),[a,o]=(0,x.useState)(null),[s,c]=(0,x.useState)(!1),[l,u]=(0,x.useState)(!0),[d,f]=(0,x.useState)(!1),[p,m]=(0,x.useState)(null),[h,g]=(0,x.useState)(!1),[_,v]=(0,x.useState)(``),[y,b]=(0,x.useState)(null),[S,C]=(0,x.useState)(null),[w,T]=(0,x.useState)(``),[E,D]=(0,x.useState)(null),[O,k]=(0,x.useState)(!1),[A,j]=(0,x.useState)(null);(0,x.useEffect)(()=>{M()},[]);async function M(){u(!0);let{data:{user:r}}=await K.auth.getUser();if(!r){e(`/login`);return}let{data:a}=await K.from(`resumes`).select(`*`).eq(`user_id`,r.id).eq(`is_active`,!0).order(`created_at`,{ascending:!1}).limit(1).maybeSingle();if(a){let e=a;i(e),o(e.parsed??t?.parsed??null),n(e)}else t&&(i(t),o(t.parsed));u(!1)}function N(e){o(t=>t&&e(t)),c(!0)}async function P(){!r||!a||d||(f(!0),await K.from(`resumes`).update({parsed:a}).eq(`id`,r.id),n({...r,parsed:a}),c(!1),f(!1))}function F(e,t){C(e),T(t),R()}function I(e){if(a){if(e===`summary`)N(e=>({...e,summary:w}));else if(e===`skills`){let e=w.split(/,|\n/).map(e=>e.trim()).filter(Boolean);N(t=>({...t,skills:e}))}else if(e===`certifications`){let e=w.split(`
+`).map(e=>e.trim()).filter(Boolean);N(t=>({...t,certifications:e}))}else if(e.startsWith(`exp-`)){let t=parseInt(e.split(`-`)[1]),n=w.split(`
+`).map(e=>e.replace(/^[-•*]\s*/,``).trim()).filter(Boolean);N(e=>{let r=[...e.experience];return r[t]={...r[t],bullets:n},{...e,experience:r}})}C(null)}}async function L(e,t,n){D(e),k(!0),j(null),C(null);try{let{data:e,error:r}=await K.functions.invoke(`ai-rewrite-section`,{body:{section_text:t,section_type:n}});if(r)throw r;j(e?.rewritten??null)}catch{D(null)}finally{k(!1)}}function R(){D(null),j(null)}function z(e,t){if(a){if(e===`summary`)N(e=>({...e,summary:t}));else if(e===`skills`){let e=t.split(/,|\n/).map(e=>e.trim()).filter(Boolean);N(t=>({...t,skills:e}))}else if(e===`certifications`){let e=t.split(`
+`).map(e=>e.trim()).filter(Boolean);N(t=>({...t,certifications:e}))}else if(e.startsWith(`exp-`)){let n=parseInt(e.split(`-`)[1]),r=t.split(`
+`).map(e=>e.replace(/^[-•*]\s*/,``).trim()).filter(Boolean);N(e=>{let t=[...e.experience];return t[n]={...t[n],bullets:r},{...e,experience:t}})}R()}}async function B(){if(!p||h)return;let{data:{user:e}}=await K.auth.getUser();if(e){g(!0),b(null);try{let t=p.name.split(`.`).pop(),a=`${e.id}/${Date.now()}_${p.name}`;v(`Uploading file…`);let{error:s}=await K.storage.from(`resumes`).upload(a,p);if(s)throw Error(s.message);v(`Extracting text…`);let l=await KS(p);r&&await K.from(`resumes`).update({is_active:!1}).eq(`id`,r.id);let{data:u,error:d}=await K.from(`resumes`).insert({user_id:e.id,file_path:a,file_name:p.name,file_type:t===`pdf`?`pdf`:`docx`,raw_text:l,is_active:!0}).select().single();if(d||!u)throw Error(`Failed to save resume record`);v(`Parsing with AI…`);let{data:f}=await K.functions.invoke(`ai-parse-resume`,{body:{text:l}});if(f?.parsed){await K.from(`resumes`).update({parsed:f.parsed}).eq(`id`,u.id);let e={...u,parsed:f.parsed};i(e),o(f.parsed),n(e)}else i(u),o(null),n(u);c(!1),m(null)}catch(e){b(e instanceof Error?e.message:`Upload failed`)}finally{g(!1),v(``)}}}return l?(0,q.jsx)(`div`,{className:`res-page`,children:(0,q.jsx)(`div`,{className:`res-loading`,children:`Loading resume…`})}):(0,q.jsxs)(`div`,{className:`res-page`,children:[(0,q.jsxs)(`div`,{className:`res-page-header`,children:[(0,q.jsxs)(`div`,{children:[(0,q.jsx)(`h1`,{className:`res-title`,children:`Resume`}),r?.file_name&&(0,q.jsx)(`p`,{className:`res-subtitle`,children:r.file_name})]}),s&&(0,q.jsx)(`button`,{className:`btn btn-primary res-save-btn`,onClick:P,disabled:d,children:d?`Saving…`:`Save Changes`})]}),(0,q.jsxs)(`div`,{className:`res-upload card`,children:[(0,q.jsxs)(`div`,{className:`res-upload-meta`,children:[(0,q.jsx)(`span`,{className:`res-upload-title`,children:r?`Replace Resume`:`Upload Resume`}),(0,q.jsx)(`span`,{className:`res-upload-hint`,children:`PDF or DOCX, max 10 MB`})]}),(0,q.jsxs)(`div`,{className:`res-upload-row`,children:[(0,q.jsx)(`input`,{type:`file`,id:`resume-replace`,accept:`.pdf,.doc,.docx`,style:{display:`none`},onChange:e=>{m(e.target.files?.[0]??null),b(null)}}),(0,q.jsx)(`label`,{htmlFor:`resume-replace`,className:`btn btn-ghost res-file-btn`,children:p?p.name:`Choose file`}),p&&(0,q.jsx)(`button`,{className:`btn btn-primary`,onClick:B,disabled:h,children:h?_||`Uploading…`:`Upload & Parse ✦`})]}),h&&(0,q.jsxs)(`div`,{className:`res-upload-progress`,children:[(0,q.jsxs)(`div`,{className:`rw-dots`,children:[(0,q.jsx)(`span`,{}),(0,q.jsx)(`span`,{}),(0,q.jsx)(`span`,{})]}),(0,q.jsx)(`span`,{children:_})]}),y&&(0,q.jsx)(`p`,{className:`res-upload-error`,children:y})]}),!a&&(0,q.jsxs)(`p`,{className:`res-empty`,children:[`No parsed resume yet. Upload a file above, or complete`,` `,(0,q.jsx)(`button`,{className:`res-text-link`,onClick:()=>e(`/onboarding`),children:`onboarding`}),`.`]}),a&&(0,q.jsxs)(`div`,{className:`res-sections`,children:[(0,q.jsxs)(JS,{title:`Summary`,onRewrite:()=>L(`summary`,a.summary,`summary`),rewriteDisabled:O,children:[S===`summary`?(0,q.jsxs)(`div`,{className:`res-edit-block`,children:[(0,q.jsx)(`textarea`,{className:`res-textarea`,value:w,onChange:e=>T(e.target.value),rows:5,autoFocus:!0}),(0,q.jsxs)(`div`,{className:`res-edit-actions`,children:[(0,q.jsx)(`button`,{className:`btn btn-primary res-done-btn`,onClick:()=>I(`summary`),children:`Done`}),(0,q.jsx)(`button`,{className:`btn btn-ghost res-done-btn`,onClick:()=>C(null),children:`Cancel`})]})]}):(0,q.jsxs)(`div`,{className:`res-summary-view`,children:[(0,q.jsx)(`p`,{className:`res-summary-text`,children:a.summary||(0,q.jsx)(`em`,{className:`res-empty-field`,children:`No summary`})}),(0,q.jsx)(`button`,{className:`btn btn-ghost res-edit-btn`,onClick:()=>F(`summary`,a.summary),children:`Edit`})]}),E===`summary`&&(0,q.jsx)(qS,{loading:O,suggestion:A,onAccept:e=>z(`summary`,e),onDismiss:R})]}),(0,q.jsx)(JS,{title:`Experience`,children:(0,q.jsx)(`div`,{className:`res-exp-list`,children:a.experience.map((e,t)=>{let n=`exp-${t}`,r=`${e.title} at ${e.company} (${e.start_date} – ${e.end_date??`Present`}):\n${e.bullets.map(e=>`- ${e}`).join(`
+`)}`;return(0,q.jsxs)(`div`,{className:`res-exp-card`,children:[(0,q.jsxs)(`div`,{className:`res-exp-header`,children:[(0,q.jsxs)(`div`,{children:[(0,q.jsx)(`div`,{className:`res-exp-title`,children:e.title}),(0,q.jsxs)(`div`,{className:`res-exp-meta`,children:[e.company,e.location?` · ${e.location}`:``,(0,q.jsxs)(`span`,{className:`res-exp-dates`,children:[` · `,e.start_date,` – `,e.end_date??`Present`]})]})]}),(0,q.jsxs)(`div`,{className:`res-exp-actions`,children:[(0,q.jsx)(`button`,{className:`btn btn-ghost res-rewrite-btn`,onClick:()=>L(n,r,`experience`),disabled:O,children:`AI Rewrite ✦`}),S!==n&&(0,q.jsx)(`button`,{className:`btn btn-ghost res-edit-btn`,onClick:()=>F(n,e.bullets.map(e=>`- ${e}`).join(`
+`)),children:`Edit bullets`})]})]}),S===n?(0,q.jsxs)(`div`,{className:`res-edit-block`,children:[(0,q.jsx)(`textarea`,{className:`res-textarea`,value:w,onChange:e=>T(e.target.value),rows:Math.max(4,e.bullets.length+2),autoFocus:!0,placeholder:`One bullet per line (- or plain text)`}),(0,q.jsxs)(`div`,{className:`res-edit-actions`,children:[(0,q.jsx)(`button`,{className:`btn btn-primary res-done-btn`,onClick:()=>I(n),children:`Done`}),(0,q.jsx)(`button`,{className:`btn btn-ghost res-done-btn`,onClick:()=>C(null),children:`Cancel`})]})]}):(0,q.jsx)(`ul`,{className:`res-bullets`,children:e.bullets.map((e,t)=>(0,q.jsx)(`li`,{children:e},t))}),E===n&&(0,q.jsx)(qS,{loading:O,suggestion:A,onAccept:e=>z(n,e),onDismiss:R})]},t)})})}),(0,q.jsxs)(JS,{title:`Skills`,onRewrite:()=>L(`skills`,a.skills.join(`, `),`skills`),rewriteDisabled:O,children:[S===`skills`?(0,q.jsxs)(`div`,{className:`res-edit-block`,children:[(0,q.jsx)(`p`,{className:`res-edit-hint`,children:`Comma or newline separated`}),(0,q.jsx)(`textarea`,{className:`res-textarea`,value:w,onChange:e=>T(e.target.value),rows:4,autoFocus:!0}),(0,q.jsxs)(`div`,{className:`res-edit-actions`,children:[(0,q.jsx)(`button`,{className:`btn btn-primary res-done-btn`,onClick:()=>I(`skills`),children:`Done`}),(0,q.jsx)(`button`,{className:`btn btn-ghost res-done-btn`,onClick:()=>C(null),children:`Cancel`})]})]}):(0,q.jsxs)(`div`,{children:[(0,q.jsxs)(`div`,{className:`res-skills-cloud`,children:[a.skills.map((e,t)=>(0,q.jsx)(`span`,{className:`res-skill-tag`,children:e},t)),a.skills.length===0&&(0,q.jsx)(`em`,{className:`res-empty-field`,children:`No skills listed`})]}),(0,q.jsx)(`button`,{className:`btn btn-ghost res-edit-btn`,style:{marginTop:10},onClick:()=>F(`skills`,a.skills.join(`, `)),children:`Edit`})]}),E===`skills`&&(0,q.jsx)(qS,{loading:O,suggestion:A,onAccept:e=>z(`skills`,e),onDismiss:R})]}),a.education.length>0&&(0,q.jsx)(JS,{title:`Education`,children:(0,q.jsx)(`div`,{className:`res-edu-list`,children:a.education.map((e,t)=>(0,q.jsxs)(`div`,{className:`res-edu-item`,children:[(0,q.jsxs)(`div`,{className:`res-edu-degree`,children:[e.degree,e.field?` in ${e.field}`:``]}),(0,q.jsxs)(`div`,{className:`res-edu-meta`,children:[e.institution,` · `,e.graduation_year]})]},t))})}),(a.certifications.length>0||S===`certifications`)&&(0,q.jsxs)(JS,{title:`Certifications`,onRewrite:a.certifications.length>0?()=>L(`certifications`,a.certifications.join(`
+`),`certifications`):void 0,rewriteDisabled:O,children:[S===`certifications`?(0,q.jsxs)(`div`,{className:`res-edit-block`,children:[(0,q.jsx)(`p`,{className:`res-edit-hint`,children:`One per line`}),(0,q.jsx)(`textarea`,{className:`res-textarea`,value:w,onChange:e=>T(e.target.value),rows:4,autoFocus:!0}),(0,q.jsxs)(`div`,{className:`res-edit-actions`,children:[(0,q.jsx)(`button`,{className:`btn btn-primary res-done-btn`,onClick:()=>I(`certifications`),children:`Done`}),(0,q.jsx)(`button`,{className:`btn btn-ghost res-done-btn`,onClick:()=>C(null),children:`Cancel`})]})]}):(0,q.jsxs)(`div`,{children:[(0,q.jsx)(`ul`,{className:`res-cert-list`,children:a.certifications.map((e,t)=>(0,q.jsx)(`li`,{children:e},t))}),(0,q.jsx)(`button`,{className:`btn btn-ghost res-edit-btn`,style:{marginTop:8},onClick:()=>F(`certifications`,a.certifications.join(`
+`)),children:`Edit`})]}),E===`certifications`&&(0,q.jsx)(qS,{loading:O,suggestion:A,onAccept:e=>z(`certifications`,e),onDismiss:R})]})]}),(0,q.jsx)(`style`,{children:`
+        .res-page { padding: 32px; max-width: 820px; }
+        .res-loading { color: rgba(242,240,234,0.4); font-size: 13px; margin-top: 32px; }
+        .res-page-header {
+          display: flex; justify-content: space-between; align-items: flex-start;
+          margin-bottom: 28px;
+        }
+        .res-title { font-size: 30px; line-height: 1.2; margin-bottom: 4px; }
+        .res-subtitle { font-size: 13px; color: rgba(242,240,234,0.4); }
+        .res-save-btn { padding: 8px 20px; }
+
+        /* Upload */
+        .res-upload { padding: 16px 20px; margin-bottom: 28px; }
+        .res-upload-meta { margin-bottom: 10px; }
+        .res-upload-title { font-size: 13px; font-weight: 600; display: block; margin-bottom: 2px; }
+        .res-upload-hint { font-size: 12px; color: rgba(242,240,234,0.4); }
+        .res-upload-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .res-file-btn { font-size: 12px; padding: 7px 14px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .res-upload-progress { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: rgba(242,240,234,0.5); }
+        .res-upload-error { color: #f87171; font-size: 13px; margin-top: 8px; }
+        .res-empty { color: rgba(242,240,234,0.4); font-size: 13px; margin-top: 8px; }
+        .res-text-link { background: none; border: none; color: var(--color-accent); cursor: pointer; font-size: 13px; padding: 0; text-decoration: underline; }
+
+        /* Sections */
+        .res-sections { display: flex; flex-direction: column; gap: 16px; }
+        .res-section { padding: 20px 24px; }
+        .res-section-header {
+          display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+        }
+        .res-section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(242,240,234,0.55); }
+        .res-rewrite-btn { font-size: 11px; padding: 4px 10px; }
+        .res-edit-btn { font-size: 11px; padding: 4px 10px; }
+
+        /* Summary */
+        .res-summary-view { display: flex; flex-direction: column; gap: 10px; }
+        .res-summary-text { font-size: 13px; line-height: 1.7; color: rgba(242,240,234,0.8); }
+
+        /* Experience */
+        .res-exp-list { display: flex; flex-direction: column; gap: 20px; }
+        .res-exp-card { padding-bottom: 20px; border-bottom: 1px solid var(--color-border); }
+        .res-exp-card:last-child { border-bottom: none; padding-bottom: 0; }
+        .res-exp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .res-exp-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .res-exp-title { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+        .res-exp-meta { font-size: 12px; color: rgba(242,240,234,0.5); }
+        .res-exp-dates { }
+        .res-bullets { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+        .res-bullets li { font-size: 13px; line-height: 1.6; color: rgba(242,240,234,0.75); }
+
+        /* Skills */
+        .res-skills-cloud { display: flex; flex-wrap: wrap; gap: 7px; }
+        .res-skill-tag {
+          background: rgba(255,255,255,0.05); border: 1px solid var(--color-border);
+          border-radius: 20px; padding: 3px 10px; font-size: 12px; color: rgba(242,240,234,0.7);
+        }
+
+        /* Education */
+        .res-edu-list { display: flex; flex-direction: column; gap: 12px; }
+        .res-edu-item { }
+        .res-edu-degree { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+        .res-edu-meta { font-size: 12px; color: rgba(242,240,234,0.5); }
+
+        /* Certifications */
+        .res-cert-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+        .res-cert-list li { font-size: 13px; color: rgba(242,240,234,0.75); }
+
+        /* Edit block */
+        .res-edit-block { display: flex; flex-direction: column; gap: 8px; }
+        .res-edit-hint { font-size: 11px; color: rgba(242,240,234,0.4); margin: 0; }
+        .res-textarea {
+          width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);
+          border-radius: var(--radius-btn); padding: 10px 12px; font-family: inherit;
+          font-size: 13px; line-height: 1.7; color: rgba(242,240,234,0.85);
+          resize: vertical; box-sizing: border-box;
+        }
+        .res-textarea:focus { outline: none; border-color: var(--color-accent); }
+        .res-edit-actions { display: flex; gap: 8px; }
+        .res-done-btn { font-size: 12px; padding: 5px 14px; }
+        .res-empty-field { font-style: italic; color: rgba(242,240,234,0.3); font-size: 13px; }
+
+        /* Rewrite panel */
+        .rw-panel {
+          margin-top: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);
+          border-radius: var(--radius-card); padding: 12px 16px;
+        }
+        .rw-panel.rw-loading {
+          display: flex; align-items: center; gap: 8px;
+          font-size: 12px; color: rgba(242,240,234,0.4);
+        }
+        .rw-panel-header {
+          display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+          font-size: 12px; font-weight: 600; text-transform: uppercase;
+          letter-spacing: 0.5px; color: rgba(242,240,234,0.5);
+        }
+        .rw-actions { display: flex; gap: 6px; margin-left: auto; }
+        .rw-btn { font-size: 11px; padding: 4px 12px; }
+        .rw-textarea {
+          width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--color-border);
+          border-radius: var(--radius-btn); padding: 10px 12px; font-family: inherit;
+          font-size: 13px; line-height: 1.7; color: rgba(242,240,234,0.85);
+          resize: vertical; box-sizing: border-box;
+        }
+        .rw-textarea:focus { outline: none; border-color: var(--color-accent); }
+
+        /* Bouncing dots */
+        .rw-dots { display: flex; gap: 4px; }
+        .rw-dots span {
+          width: 5px; height: 5px; border-radius: 50%; background: var(--color-accent);
+          animation: rw-bounce 1s ease-in-out infinite;
+        }
+        .rw-dots span:nth-child(2) { animation-delay: 0.15s; }
+        .rw-dots span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes rw-bounce {
+          0%,100% { transform: translateY(0); opacity: 0.4; }
+          50% { transform: translateY(-4px); opacity: 1; }
+        }
+      `})]})}var XS=[{value:`professional`,label:`Professional`},{value:`conversational`,label:`Conversational`},{value:`enthusiastic`,label:`Enthusiastic`}],ZS=[{value:`short`,label:`Short (~150w)`},{value:`medium`,label:`Medium (~300w)`},{value:`long`,label:`Long (~450w)`}];function QS(){let{jobId:e}=lt(),t=at(),{resume:n}=cc(),[r,i]=(0,x.useState)(null),[a,o]=(0,x.useState)(null),[s,c]=(0,x.useState)(!0),[l,u]=(0,x.useState)(`professional`),[d,f]=(0,x.useState)(`medium`),[p,m]=(0,x.useState)(``),[h,g]=(0,x.useState)(!1),[_,v]=(0,x.useState)(null),[y,b]=(0,x.useState)(!1);(0,x.useEffect)(()=>{e&&S(e)},[e]);async function S(e){c(!0);let{data:{user:r}}=await K.auth.getUser();if(!r){t(`/login`);return}let[a,s]=await Promise.all([K.from(`jobs`).select(`*`).eq(`id`,e).single(),K.from(`resumes`).select(`parsed`).eq(`user_id`,r.id).eq(`is_active`,!0).order(`created_at`,{ascending:!1}).limit(1).maybeSingle()]);a.data&&i(a.data),o(s.data?.parsed??n?.parsed??null),c(!1)}async function C(){if(!(!r||!a||h)){g(!0),v(null);try{let{data:e,error:t}=await K.functions.invoke(`ai-generate-cover-letter`,{body:{resume_parsed:a,job_description:r.description,tone:l,length:d,job_id:r.id}});if(t)throw t;m(e?.content??``)}catch{v(`Could not generate cover letter — try again.`)}finally{g(!1)}}}async function w(){await navigator.clipboard.writeText(p),b(!0),setTimeout(()=>b(!1),2e3)}return s?(0,q.jsx)(`div`,{className:`cl-page`,children:(0,q.jsx)(`div`,{className:`cl-loading`,children:`Loading…`})}):(0,q.jsxs)(`div`,{className:`cl-page`,children:[(0,q.jsx)(`button`,{className:`back-link`,onClick:()=>t(-1),children:`← Back`}),(0,q.jsx)(`h1`,{className:`cl-title`,children:`Cover Letter`}),r&&(0,q.jsxs)(`div`,{className:`cl-job-context`,children:[(0,q.jsx)(`span`,{className:`cl-job-title`,children:r.title}),r.company&&(0,q.jsxs)(`span`,{className:`cl-job-company`,children:[`@ `,r.company]})]}),(0,q.jsxs)(`div`,{className:`cl-controls`,children:[(0,q.jsxs)(`div`,{className:`cl-control-group`,children:[(0,q.jsx)(`label`,{className:`cl-label`,children:`Tone`}),(0,q.jsx)(`div`,{className:`cl-pills`,children:XS.map(e=>(0,q.jsx)(`button`,{className:`cl-pill${l===e.value?` active`:``}`,onClick:()=>u(e.value),children:e.label},e.value))})]}),(0,q.jsxs)(`div`,{className:`cl-control-group`,children:[(0,q.jsx)(`label`,{className:`cl-label`,children:`Length`}),(0,q.jsx)(`div`,{className:`cl-pills`,children:ZS.map(e=>(0,q.jsx)(`button`,{className:`cl-pill${d===e.value?` active`:``}`,onClick:()=>f(e.value),children:e.label},e.value))})]})]}),!a&&(0,q.jsxs)(`p`,{className:`cl-no-resume`,children:[`No resume found.`,` `,(0,q.jsx)(`button`,{className:`cl-text-link`,onClick:()=>t(`/resume`),children:`Upload one first.`})]}),(0,q.jsx)(`button`,{className:`btn btn-primary cl-generate-btn`,onClick:C,disabled:!a||h,title:a?void 0:`Upload your resume first`,children:h?`Generating…`:p?`Regenerate ✦`:`Generate Cover Letter ✦`}),_&&(0,q.jsx)(`p`,{className:`cl-error`,children:_}),h&&(0,q.jsxs)(`div`,{className:`cl-generating`,children:[(0,q.jsxs)(`div`,{className:`cl-dots`,children:[(0,q.jsx)(`span`,{}),(0,q.jsx)(`span`,{}),(0,q.jsx)(`span`,{})]}),(0,q.jsx)(`span`,{children:`Writing your cover letter…`})]}),p&&!h&&(0,q.jsxs)(`div`,{className:`cl-output-wrapper`,children:[(0,q.jsxs)(`div`,{className:`cl-output-header`,children:[(0,q.jsx)(`span`,{className:`ai-indicator`,children:`✦`}),(0,q.jsx)(`span`,{children:`Generated Cover Letter`}),(0,q.jsx)(`button`,{className:`btn btn-ghost cl-copy-btn`,onClick:w,children:y?`Copied ✓`:`Copy`})]}),(0,q.jsx)(`textarea`,{className:`cl-output`,value:p,onChange:e=>m(e.target.value),rows:18})]}),(0,q.jsx)(`style`,{children:`
+        .cl-page { padding: 32px; max-width: 760px; }
+        .back-link {
+          background: none; border: none; color: rgba(242,240,234,0.5);
+          font-size: 13px; cursor: pointer; margin-bottom: 24px; display: inline-block; padding: 0;
+        }
+        .back-link:hover { color: var(--color-text); }
+        .cl-loading { color: rgba(242,240,234,0.4); font-size: 13px; margin-top: 32px; }
+        .cl-title { font-size: 30px; margin-bottom: 8px; line-height: 1.2; }
+        .cl-job-context { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; }
+        .cl-job-title { font-size: 15px; font-weight: 600; }
+        .cl-job-company { font-size: 14px; color: rgba(242,240,234,0.5); }
+        .cl-controls { display: flex; gap: 32px; margin-bottom: 24px; flex-wrap: wrap; }
+        .cl-control-group { display: flex; flex-direction: column; gap: 7px; }
+        .cl-label {
+          font-size: 11px; font-weight: 600; text-transform: uppercase;
+          letter-spacing: 0.5px; color: rgba(242,240,234,0.4);
+        }
+        .cl-pills { display: flex; gap: 6px; }
+        .cl-pill {
+          background: rgba(255,255,255,0.05); border: 1px solid var(--color-border);
+          border-radius: 20px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+          color: rgba(242,240,234,0.7); transition: all 0.15s;
+        }
+        .cl-pill:hover { border-color: var(--color-accent); color: var(--color-text); }
+        .cl-pill.active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+        .cl-no-resume { font-size: 13px; color: rgba(242,240,234,0.45); margin-bottom: 16px; }
+        .cl-text-link { background: none; border: none; color: var(--color-accent); cursor: pointer; font-size: 13px; padding: 0; text-decoration: underline; }
+        .cl-generate-btn { padding: 10px 24px; margin-bottom: 16px; }
+        .cl-error { color: #f87171; font-size: 13px; margin-bottom: 12px; }
+        .cl-generating {
+          display: flex; align-items: center; gap: 10px;
+          color: rgba(242,240,234,0.4); font-size: 13px; margin: 16px 0;
+        }
+        .cl-dots { display: flex; gap: 4px; }
+        .cl-dots span {
+          width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent);
+          animation: cl-bounce 1s ease-in-out infinite;
+        }
+        .cl-dots span:nth-child(2) { animation-delay: 0.15s; }
+        .cl-dots span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes cl-bounce {
+          0%,100% { transform: translateY(0); opacity: 0.4; }
+          50% { transform: translateY(-5px); opacity: 1; }
+        }
+        .cl-output-wrapper { margin-top: 16px; }
+        .cl-output-header {
+          display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+          text-transform: uppercase; letter-spacing: 0.5px;
+          color: rgba(242,240,234,0.55); margin-bottom: 8px;
+        }
+        .cl-copy-btn { margin-left: auto; padding: 4px 12px; font-size: 12px; }
+        .cl-output {
+          width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--color-border);
+          border-radius: var(--radius-card); padding: 16px; font-family: inherit;
+          font-size: 13px; line-height: 1.8; color: rgba(242,240,234,0.85);
+          resize: vertical; min-height: 320px; box-sizing: border-box;
+        }
+        .cl-output:focus { outline: none; border-color: var(--color-accent); }
+      `})]})}function $S(){return(0,q.jsxs)(`div`,{children:[(0,q.jsx)(`h1`,{style:{fontSize:28,marginBottom:8},children:`Settings`}),(0,q.jsx)(`p`,{style:{color:`rgba(242,240,234,0.45)`,fontSize:13},children:`Profile, preferences, and account management — coming in Sprint 6.`})]})}function eC(){return(0,q.jsx)(Tn,{basename:`/JobApp`,children:(0,q.jsxs)(Lt,{children:[(0,q.jsx)(Ft,{path:`/login`,element:(0,q.jsx)(_c,{})}),(0,q.jsx)(Ft,{path:`/signup`,element:(0,q.jsx)(Sc,{})}),(0,q.jsx)(Ft,{path:`/onboarding`,element:(0,q.jsx)(mc,{children:(0,q.jsx)(wS,{})})}),(0,q.jsxs)(Ft,{element:(0,q.jsx)(mc,{children:(0,q.jsx)(pc,{})}),children:[(0,q.jsx)(Ft,{index:!0,element:(0,q.jsx)(jS,{})}),(0,q.jsx)(Ft,{path:`/search`,element:(0,q.jsx)(HS,{})}),(0,q.jsx)(Ft,{path:`/jobs/:id`,element:(0,q.jsx)(GS,{})}),(0,q.jsx)(Ft,{path:`/resume`,element:(0,q.jsx)(YS,{})}),(0,q.jsx)(Ft,{path:`/cover/:jobId`,element:(0,q.jsx)(QS,{})}),(0,q.jsx)(Ft,{path:`/settings`,element:(0,q.jsx)($S,{})})]}),(0,q.jsx)(Ft,{path:`*`,element:(0,q.jsx)(Nt,{to:`/`,replace:!0})})]})})}(0,S.createRoot)(document.getElementById(`root`)).render((0,q.jsx)(x.StrictMode,{children:(0,q.jsx)(eC,{})}));
