@@ -81,7 +81,11 @@ function JobCard({
         </div>
         <div className="job-card-score" style={{ color }}>
           {job.match_score === null ? (
-            <span className="score-pending">…</span>
+            <div className="score-dots">
+              <span className="score-dot" />
+              <span className="score-dot" />
+              <span className="score-dot" />
+            </div>
           ) : (
             <span className="score-value">{job.match_score}</span>
           )}
@@ -463,7 +467,18 @@ export function Search() {
           font-size: 22px; font-weight: 700; font-family: "DM Mono", monospace;
           min-width: 44px; text-align: right; line-height: 1;
         }
-        .score-pending { font-size: 14px; opacity: 0.4; }
+        .score-dots { display: flex; gap: 3px; align-items: center; justify-content: flex-end; }
+        .score-dot {
+          width: 5px; height: 5px; border-radius: 50%;
+          background: var(--color-accent); opacity: 0.35;
+          animation: score-bounce 1.1s ease-in-out infinite;
+        }
+        .score-dot:nth-child(2) { animation-delay: 0.18s; }
+        .score-dot:nth-child(3) { animation-delay: 0.36s; }
+        @keyframes score-bounce {
+          0%, 70%, 100% { transform: translateY(0); opacity: 0.35; }
+          35% { transform: translateY(-5px); opacity: 0.9; }
+        }
         .job-card-footer {
           display: flex; align-items: center; justify-content: space-between;
           margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--color-border);
