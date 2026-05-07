@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg: #0e0f11;
+  --color-text: #f2f0ea;
+  --color-accent: oklch(62% 0.2 250);
+  --color-secondary: oklch(72% 0.15 80);
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-hover: rgba(255, 255, 255, 0.13);
+  --color-match-green: oklch(70% 0.18 145);
+  --color-match-amber: oklch(72% 0.15 80);
+  --color-match-gray: rgba(255, 255, 255, 0.35);
+  --radius-card: 10px;
+  --radius-btn: 6px;
+  --sidebar-width: 220px;
+
+  /* shadcn/ui CSS variable mapping */
+  --background: 0 0% 5%;
+  --foreground: 40 33% 95%;
+  --card: 0 0% 7%;
+  --card-foreground: 40 33% 95%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 40 33% 95%;
+  --primary: 220 80% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 40 50% 55%;
+  --secondary-foreground: 0 0% 10%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 55%;
+  --accent: 220 80% 55%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62.8% 50%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 100% / 0.07;
+  --input: 0 0% 100% / 0.1;
+  --ring: 220 80% 55%;
+  --radius: 0.625rem;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100%;
+}
+
+h1, h2, h3 {
+  font-family: "Instrument Serif", serif;
+}
+
+code, pre, .mono {
+  font-family: "DM Mono", monospace;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+.ai-indicator {
+  color: var(--color-accent);
+  font-size: 0.9em;
+}
+
+/* Match score utilities */
+.match-score-green { color: var(--color-match-green); }
+.match-score-amber { color: var(--color-match-amber); }
+.match-score-gray  { color: var(--color-match-gray); }
+
+/* Card & input base styles */
+.card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  transition: border-color 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--color-border-hover);
+}
+
+.input-base {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  color: var(--color-text);
+  padding: 8px 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input-base:focus {
+  border-color: var(--color-accent);
+}
+
+.input-base::placeholder {
+  color: rgba(242, 240, 234, 0.35);
+}
+
+/* Button base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-btn);
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--color-border-hover);
+  background: rgba(255, 255, 255, 0.04);
+}
