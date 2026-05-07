@@ -223,53 +223,84 @@ export function Search() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data: saved, error } = await supabase
-      .from('jobs')
-      .insert({
-        user_id: user.id,
-        source: job.source,
-        external_id: job.external_id,
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        salary_min: job.salary_min != null ? Math.round(job.salary_min) : null,
-        salary_max: job.salary_max != null ? Math.round(job.salary_max) : null,
-        salary_currency: job.salary_currency,
-        description: job.description,
-        tags: job.tags,
-        url: job.url,
-        posted_at: job.posted_at,
-        match_score: job.match_score,
-        match_breakdown: job.match_breakdown,
-      })
-      .select()
-      .single()
+    // Reuse existing job row if same Adzuna external_id already saved
+    let dbJobId: string | null = null
+    let dbJobScore: number | null = job.match_score
 
-    if (error) { console.error('Job save error:', error); return }
+    if (job.external_id) {
+      const { data: existing } = await supabase
+        .from('jobs')
+        .select('id, match_score')
+        .eq('user_id', user.id)
+        .eq('external_id', job.external_id)
+        .maybeSingle()
+      if (existing) {
+        dbJobId = existing.id
+        dbJobScore = existing.match_score
+      }
+    }
 
-    if (saved) {
+    if (!dbJobId) {
+      const { data: saved, error } = await supabase
+        .from('jobs')
+        .insert({
+          user_id: user.id,
+          source: job.source,
+          external_id: job.external_id,
+          title: job.title,
+          company: job.company,
+          location: job.location,
+          salary_min: job.salary_min != null ? Math.round(job.salary_min) : null,
+          salary_max: job.salary_max != null ? Math.round(job.salary_max) : null,
+          salary_currency: job.salary_currency,
+          description: job.description,
+          tags: job.tags,
+          url: job.url,
+          posted_at: job.posted_at,
+          match_score: job.match_score,
+          match_breakdown: job.match_breakdown,
+        })
+        .select('id')
+        .single()
+      if (error) { console.error('Job save error:', error); return }
+      if (!saved) return
+      dbJobId = saved.id
+    }
+
+    // Skip application insert if one already exists for this job
+    const { data: existingApp } = await supabase
+      .from('applications')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('job_id', dbJobId)
+      .maybeSingle()
+
+    if (!existingApp) {
       await supabase.from('applications').insert({
         user_id: user.id,
-        job_id: saved.id,
+        job_id: dbJobId,
         status: 'saved',
       })
-      addSavedJobId(job.id)
+    }
 
-      if (job.match_score === null && resume?.parsed && job.description) {
-        supabase.functions
-          .invoke('ai-score-job', {
-            body: { resume_parsed: resume.parsed, job_description: job.description },
-          })
-          .then(({ data }) => {
-            if (data?.score !== undefined) {
-              supabase
-                .from('jobs')
-                .update({ match_score: data.score, match_breakdown: data.breakdown ?? null })
-                .eq('id', saved.id)
-              updateJobScore(job.id, data.score, data.breakdown ?? null)
-            }
-          })
-      }
+    addSavedJobId(job.id)
+
+    // Score in background if score not yet available
+    if (dbJobScore === null && resume?.parsed && job.description) {
+      const capturedJobId = dbJobId
+      supabase.functions
+        .invoke('ai-score-job', {
+          body: { resume_parsed: resume.parsed, job_description: job.description },
+        })
+        .then(({ data }) => {
+          if (data?.score !== undefined) {
+            supabase
+              .from('jobs')
+              .update({ match_score: data.score, match_breakdown: data.breakdown ?? null })
+              .eq('id', capturedJobId)
+            updateJobScore(job.id, data.score, data.breakdown ?? null)
+          }
+        })
     }
   }
 
