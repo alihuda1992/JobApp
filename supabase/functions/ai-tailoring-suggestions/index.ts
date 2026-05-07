@@ -29,14 +29,15 @@ serve(async (req) => {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [{ role: 'user', parts: [{ text }] }],
-        generationConfig: { temperature: 0.3, responseMimeType: 'application/json' },
+        generationConfig: { temperature: 0.3 },
       }),
     })
 
     if (!res.ok) throw new Error(`Gemini error ${res.status}: ${await res.text()}`)
     const json = await res.json()
-    const content = json.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-    const result = JSON.parse(content.trim())
+    const raw = (json.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
+    const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+    const result = JSON.parse(cleaned)
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
