@@ -107,7 +107,7 @@ function JobCard({
 
 export function Search() {
   const navigate = useNavigate()
-  const { resume, searchResults, setSearchResults, updateJobScore, savedJobIds, addSavedJobId } = useAppStore()
+  const { profile, resume, searchResults, setSearchResults, updateJobScore, savedJobIds, addSavedJobId } = useAppStore()
 
   const [tab, setTab] = useState<Tab>('search')
   const [query, setQuery] = useState('')
@@ -151,15 +151,14 @@ export function Search() {
     [hasResume, resume, updateJobScore]
   )
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
+  async function runSearch(q: string, loc?: string) {
     setError(null)
     setLoading(true)
     setSearchResults([])
     try {
       const jobs = await searchJobs({
-        query,
-        location: location || undefined,
+        query: q,
+        location: loc ?? (location || undefined),
         salaryMin: salaryMin ? Number(salaryMin) : undefined,
       })
       setSearchResults(jobs)
@@ -170,6 +169,29 @@ export function Search() {
       setLoading(false)
     }
   }
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault()
+    runSearch(query)
+  }
+
+  function handleChipClick(chip: string) {
+    setQuery(chip)
+    runSearch(chip)
+  }
+
+  // Suggestions: target titles first, then recent experience titles, deduplicated
+  const suggestions: string[] = (() => {
+    const seen = new Set<string>()
+    const result: string[] = []
+    const add = (s: string) => {
+      const key = s.toLowerCase()
+      if (s && !seen.has(key)) { seen.add(key); result.push(s) }
+    }
+    profile?.target_titles?.forEach(add)
+    resume?.parsed?.experience?.slice(0, 3).forEach(e => add(e.title))
+    return result.slice(0, 6)
+  })()
 
   async function handlePaste(e: React.FormEvent) {
     e.preventDefault()
@@ -379,6 +401,22 @@ export function Search() {
             </button>
           </form>
 
+          {suggestions.length > 0 && !loading && searchResults.length === 0 && (
+            <div className="suggestions-strip">
+              <span className="suggestions-label">Based on your resume</span>
+              <div className="suggestions-chips">
+                {suggestions.map(s => (
+                  <button
+                    key={s}
+                    className="suggestion-chip"
+                    onClick={() => handleChipClick(s)}
+                    disabled={noAdzuna}
+                  >{s}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {error && <div className="search-error">{error}</div>}
 
           {loading && (
@@ -552,6 +590,21 @@ export function Search() {
         .sk-badge { height: 10px; width: 20%; margin-top: 12px; }
         @keyframes shimmer {
           from { opacity: 0.5; } to { opacity: 1; }
+        }
+        .suggestions-strip { margin-bottom: 20px; }
+        .suggestions-label {
+          display: block; font-size: 11px; font-weight: 600; text-transform: uppercase;
+          letter-spacing: 0.5px; color: rgba(242,240,234,0.35); margin-bottom: 8px;
+        }
+        .suggestions-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+        .suggestion-chip {
+          background: rgba(255,255,255,0.05); border: 1px solid var(--color-border);
+          border-radius: 20px; padding: 5px 14px; font-size: 12px; cursor: pointer;
+          color: rgba(242,240,234,0.75); transition: all 0.15s;
+        }
+        .suggestion-chip:hover:not(:disabled) {
+          background: rgba(255,255,255,0.1); border-color: var(--color-accent);
+          color: var(--color-text);
         }
         .no-results { color: rgba(242,240,234,0.4); font-size: 13px; margin-top: 24px; }
         .paste-panel { max-width: 560px; }
