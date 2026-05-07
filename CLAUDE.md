@@ -70,8 +70,8 @@ GitHub Actions reads from repo Secrets (Settings → Secrets and variables → A
 
 - Sprint 0 (scaffolding): ✅ complete
 - Sprint 1 (auth + onboarding): ✅ complete
-- Sprint 2 (edge functions): ✅ stubs complete — need `ANTHROPIC_API_KEY` wired in Supabase
-- Sprint 3 (job search UI): pending
-- Sprint 4 (kanban pipeline): pending
+- Sprint 2 (edge functions): ✅ complete — all 5 functions on Gemini 2.5 Flash
+- Sprint 3 (job search UI): ✅ complete — Adzuna search, paste JD, AI scoring
+- Sprint 4 (kanban pipeline): ✅ complete — drag-and-drop board, real-time subscription, delete
 - Sprint 5 (resume editor + cover letter): pending
 - Sprint 6 (polish): pending
