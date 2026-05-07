@@ -126,20 +126,23 @@ export function Search() {
   const scoreInBatches = useCallback(
     async (jobs: Job[]) => {
       if (!hasResume) return
-      await Promise.all(
-        jobs.map(async (job) => {
-          try {
-            const { data } = await supabase.functions.invoke('ai-score-job', {
-              body: { resume_parsed: resume!.parsed, job_description: job.description },
-            })
-            if (data?.score !== undefined) {
-              updateJobScore(job.id, data.score, data.breakdown ?? null)
+      const BATCH = 8
+      for (let i = 0; i < jobs.length; i += BATCH) {
+        await Promise.all(
+          jobs.slice(i, i + BATCH).map(async (job) => {
+            try {
+              const { data } = await supabase.functions.invoke('ai-score-job', {
+                body: { resume_parsed: resume!.parsed, job_description: job.description },
+              })
+              if (data?.score !== undefined) {
+                updateJobScore(job.id, data.score, data.breakdown ?? null)
+              }
+            } catch {
+              // per-card scoring failure is silent
             }
-          } catch {
-            // per-card scoring failure is silent
-          }
-        })
-      )
+          })
+        )
+      }
     },
     [hasResume, resume, updateJobScore]
   )
