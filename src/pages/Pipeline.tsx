@@ -147,7 +147,7 @@ function KanbanColumn({
 }
 
 export function Pipeline() {
-  const { applications, setApplications, upsertApplication, removeApplication } = useAppStore()
+  const { applications, setApplications, upsertApplication, removeApplication, resume } = useAppStore()
   const [loading, setLoading] = useState(true)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<KanbanStatus | null>(null)
@@ -155,6 +155,33 @@ export function Pipeline() {
   useEffect(() => {
     let cancelled = false
     let channel: ReturnType<typeof supabase.channel> | null = null
+
+    async function scoreUnscored(apps: Application[]) {
+      if (!resume?.parsed) return
+      const unscored = apps.filter((a) => a.job && a.job.match_score === null && a.job.description)
+      if (!unscored.length) return
+      const BATCH = 3
+      for (let i = 0; i < unscored.length; i += BATCH) {
+        if (cancelled) break
+        await Promise.all(
+          unscored.slice(i, i + BATCH).map(async (app) => {
+            const { data } = await supabase.functions.invoke('ai-score-job', {
+              body: { resume_parsed: resume.parsed, job_description: app.job!.description },
+            })
+            if (data?.score !== undefined && !cancelled) {
+              await supabase
+                .from('jobs')
+                .update({ match_score: data.score, match_breakdown: data.breakdown ?? null })
+                .eq('id', app.job!.id)
+              upsertApplication({
+                ...app,
+                job: { ...app.job!, match_score: data.score, match_breakdown: data.breakdown ?? null },
+              })
+            }
+          })
+        )
+      }
+    }
 
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -171,8 +198,10 @@ export function Pipeline() {
 
       if (cancelled) return
       if (error) console.error('Pipeline fetch error:', error)
-      if (data) setApplications(data as Application[])
+      const apps = (data as Application[]) ?? []
+      setApplications(apps)
       setLoading(false)
+      scoreUnscored(apps)
 
       channel = supabase
         .channel('pipeline-apps')
