@@ -156,8 +156,7 @@ export function Pipeline() {
     let cancelled = false
     let channel: ReturnType<typeof supabase.channel> | null = null
 
-    async function scoreUnscored(apps: Application[]) {
-      if (!resume?.parsed) return
+    async function scoreUnscored(apps: Application[], resumeParsed: unknown) {
       const unscored = apps.filter((a) => a.job && a.job.match_score === null && a.job.description)
       if (!unscored.length) return
       const BATCH = 3
@@ -166,7 +165,7 @@ export function Pipeline() {
         await Promise.all(
           unscored.slice(i, i + BATCH).map(async (app) => {
             const { data } = await supabase.functions.invoke('ai-score-job', {
-              body: { resume_parsed: resume.parsed, job_description: app.job!.description },
+              body: { resume_parsed: resumeParsed, job_description: app.job!.description },
             })
             if (data?.score !== undefined && !cancelled) {
               await supabase
@@ -190,18 +189,30 @@ export function Pipeline() {
         return
       }
 
-      const { data, error } = await supabase
-        .from('applications')
-        .select('*, job:jobs!job_id(*)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      const [appsResult, resumeResult] = await Promise.all([
+        supabase
+          .from('applications')
+          .select('*, job:jobs!job_id(*)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('resumes')
+          .select('parsed')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
 
       if (cancelled) return
-      if (error) console.error('Pipeline fetch error:', error)
-      const apps = (data as Application[]) ?? []
+      if (appsResult.error) console.error('Pipeline fetch error:', appsResult.error)
+      const apps = (appsResult.data as Application[]) ?? []
       setApplications(apps)
       setLoading(false)
-      scoreUnscored(apps)
+
+      const resumeParsed = resumeResult.data?.parsed ?? resume?.parsed
+      if (resumeParsed) scoreUnscored(apps, resumeParsed)
 
       channel = supabase
         .channel('pipeline-apps')
