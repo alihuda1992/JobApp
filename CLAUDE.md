@@ -17,8 +17,8 @@ supabase functions serve ai-parse-resume --env-file .env.local
 
 Deploy edge functions:
 ```bash
-supabase functions deploy ai-parse-resume
-supabase secrets set ANTHROPIC_API_KEY=...
+supabase functions deploy <function-name>
+# GEMINI_API_KEY is the only secret needed — already set on the project
 ```
 
 ## Architecture
@@ -27,7 +27,7 @@ supabase secrets set ANTHROPIC_API_KEY=...
 
 **Backend**: Supabase — Postgres (with RLS), Auth (email+password), Storage (resumes bucket), and Edge Functions (Deno/TypeScript in `supabase/functions/`).
 
-**AI**: All Claude API calls are proxied through Edge Functions (key never in client). Haiku (`claude-haiku-4-5`) for parsing/scoring, Sonnet (`claude-sonnet-4-6`) for generation.
+**AI**: All AI calls go through Edge Functions (key never in client). All functions use **Gemini 2.5 Flash** via the Gemini API (`GEMINI_API_KEY` secret on Supabase).
 
 **State**: Zustand store in `src/store/useAppStore.ts` holds `{ profile, applications, jobs }`. Auth state lives in `useAuth` hook (`src/hooks/useAuth.ts`).
 
@@ -71,8 +71,25 @@ GitHub Actions reads from repo Secrets (Settings → Secrets and variables → A
 
 - Sprint 0 (scaffolding): ✅ complete
 - Sprint 1 (auth + onboarding): ✅ complete
-- Sprint 2 (edge functions): ✅ complete — all 5 functions on Gemini 2.5 Flash
-- Sprint 3 (job search UI): ✅ complete — Adzuna search, paste JD, AI scoring
-- Sprint 4 (kanban pipeline): ✅ complete — drag-and-drop board, real-time subscription, delete
-- Sprint 5 (resume editor + cover letter): pending
-- Sprint 6 (polish): pending
+- Sprint 2 (edge functions): ✅ complete — all 6 functions on Gemini 2.5 Flash
+- Sprint 3 (job search UI): ✅ complete — Adzuna search, paste JD, AI scoring, resume-based search chips
+- Sprint 4 (kanban pipeline): ✅ complete — drag-and-drop board, real-time subscription, delete, auto-scoring
+- Sprint 5 (resume editor + cover letter): ✅ complete — resume editor with AI rewrite per section, cover letter generator, tailored resume generator
+- Sprint 6 (polish): 🔜 next — see below
+
+## Sprint 6 Scope (next session)
+
+Priority order:
+
+1. **Settings page** — `src/pages/Settings.tsx` is a stub. Should let users update their profile (name, target titles, preferred locations, seniority, min salary, company size prefs) — same fields as onboarding. Read from `profiles` table, save with upsert.
+
+2. **Error boundaries** — Wrap the app in a React error boundary so uncaught render errors show a friendly message instead of a blank screen. Add a simple `ErrorBoundary` class component in `src/components/`.
+
+3. **Empty states** — Pipeline with 0 applications should prompt to search. Search with no results should suggest using the resume chips. Resume page with no upload should be more inviting.
+
+4. **Mobile polish** — The app has basic mobile support (bottom tab bar on ≤768px) but pages haven't been tested at small widths. Pipeline kanban scrolls horizontally which is fine; other pages may need padding/font-size tweaks.
+
+5. **Stale resume deduplication** — When a user re-uploads a resume, old rows are marked `is_active: false` but never cleaned up. Not urgent, low priority.
+
+### Pages still as stubs
+- `src/pages/Settings.tsx` — only meaningful stub remaining
