@@ -8,6 +8,8 @@ export interface Profile {
   seniority: 'junior' | 'mid' | 'senior' | 'lead' | 'director' | null
   company_size_prefs: string[]
   onboarding_complete: boolean
+  notion_token: string | null
+  notion_db_id: string | null
   created_at: string
   updated_at: string
 }

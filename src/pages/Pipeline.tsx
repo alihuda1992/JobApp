@@ -4,6 +4,16 @@ import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/useAppStore'
 import type { Application } from '@/types'
 
+async function notionUpsert(app: Application, notionToken: string, notionDbId: string) {
+  try {
+    await supabase.functions.invoke('notion-sync', {
+      body: { action: 'upsert', notion_token: notionToken, notion_db_id: notionDbId, application: app },
+    })
+  } catch {
+    // silent — Notion sync failure should never block the UI
+  }
+}
+
 type KanbanStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'rejected'
 
 const COLUMNS: { key: KanbanStatus; label: string; accent: string }[] = [
@@ -153,10 +163,14 @@ function KanbanColumn({
 }
 
 export function Pipeline() {
-  const { applications, setApplications, upsertApplication, removeApplication, resume } = useAppStore()
+  const { profile, applications, setApplications, upsertApplication, removeApplication, resume } = useAppStore()
   const [loading, setLoading] = useState(true)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<KanbanStatus | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
+
+  const notionConnected = !!(profile as any)?.notion_token && !!(profile as any)?.notion_db_id
 
   useEffect(() => {
     let cancelled = false
@@ -259,9 +273,35 @@ export function Pipeline() {
       patch.applied_at = new Date().toISOString()
     }
 
-    upsertApplication({ ...app, status: targetStatus, applied_at: (patch.applied_at as string) ?? app.applied_at })
-
+    const updated = { ...app, status: targetStatus, applied_at: (patch.applied_at as string) ?? app.applied_at }
+    upsertApplication(updated)
     await supabase.from('applications').update(patch).eq('id', dragId)
+
+    // Auto-sync to Notion if connected (fire-and-forget)
+    const p = profile as any
+    if (p?.notion_token && p?.notion_db_id) {
+      notionUpsert(updated, p.notion_token, p.notion_db_id)
+    }
+  }
+
+  async function handleSyncAll() {
+    const p = profile as any
+    if (!p?.notion_token || !p?.notion_db_id || syncing) return
+    setSyncing(true)
+    setSyncMsg(null)
+    try {
+      const { data, error } = await supabase.functions.invoke('notion-sync', {
+        body: { action: 'sync_all', notion_token: p.notion_token, notion_db_id: p.notion_db_id, applications },
+      })
+      if (error) throw error
+      setSyncMsg(`Synced ${data?.synced ?? 0} cards ✓`)
+      setTimeout(() => setSyncMsg(null), 3000)
+    } catch {
+      setSyncMsg('Sync failed — check Settings')
+      setTimeout(() => setSyncMsg(null), 4000)
+    } finally {
+      setSyncing(false)
+    }
   }
 
   async function deleteApplication(id: string) {
@@ -285,6 +325,14 @@ export function Pipeline() {
         <h1 className="page-title">Pipeline</h1>
         {!loading && (
           <span className="pipeline-total">{visible.length} application{visible.length !== 1 ? 's' : ''}</span>
+        )}
+        {notionConnected && (
+          <div className="pipeline-notion">
+            {syncMsg && <span className="notion-sync-msg">{syncMsg}</span>}
+            <button className="btn btn-ghost notion-sync-btn" onClick={handleSyncAll} disabled={syncing}>
+              {syncing ? 'Syncing…' : '↑ Sync Notion'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -345,11 +393,14 @@ export function Pipeline() {
         }
         .pipeline-header {
           display: flex;
-          align-items: baseline;
+          align-items: center;
           gap: 12px;
           padding-bottom: 20px;
           flex-shrink: 0;
         }
+        .pipeline-notion { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+        .notion-sync-btn { font-size: 12px; padding: 5px 12px; }
+        .notion-sync-msg { font-size: 12px; color: rgba(242,240,234,0.5); }
         .page-title { font-size: 28px; }
         .pipeline-total {
           font-size: 13px;
