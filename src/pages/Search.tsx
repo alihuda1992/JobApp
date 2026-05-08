@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { searchJobs, adzunaConfigured } from '@/lib/adzuna'
+import { searchJobs, adzunaConfigured, COUNTRIES } from '@/lib/adzuna'
 import { useAppStore } from '@/store/useAppStore'
 import type { Job } from '@/types'
 
@@ -113,6 +113,7 @@ export function Search() {
   const [query, setQuery] = useState('')
   const [location, setLocation] = useState('')
   const [salaryMin, setSalaryMin] = useState('')
+  const [country, setCountry] = useState('us')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [bannerDismissed, setBannerDismissed] = useState(false)
@@ -160,6 +161,7 @@ export function Search() {
         query: q,
         location: loc ?? (location || undefined),
         salaryMin: salaryMin ? Number(salaryMin) : undefined,
+        country,
       })
       setSearchResults(jobs)
       scoreInBatches(jobs)
@@ -396,6 +398,16 @@ export function Search() {
               onChange={(e) => setSalaryMin(e.target.value)}
               disabled={noAdzuna}
             />
+            <select
+              className="input-base search-country-select"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              disabled={noAdzuna}
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.label}</option>
+              ))}
+            </select>
             <button type="submit" className="btn btn-primary" disabled={loading || noAdzuna}>
               {loading ? 'Searching…' : 'Search'}
             </button>
@@ -530,11 +542,17 @@ export function Search() {
           color: #fff !important;
         }
         .search-form {
-          display: grid; grid-template-columns: 1fr 1fr 1fr auto;
+          display: grid; grid-template-columns: 1fr 1fr 1fr 150px auto;
           gap: 10px; margin-bottom: 20px; align-items: end;
         }
-        @media (max-width: 680px) {
+        .search-country-select { cursor: pointer; }
+        @media (max-width: 760px) {
+          .search-form { grid-template-columns: 1fr 1fr; }
+          .search-form button[type="submit"] { grid-column: span 2; }
+        }
+        @media (max-width: 480px) {
           .search-form { grid-template-columns: 1fr; }
+          .search-form button[type="submit"] { grid-column: span 1; }
         }
         .search-error {
           background: rgba(220,50,50,0.12); border: 1px solid rgba(220,50,50,0.3);

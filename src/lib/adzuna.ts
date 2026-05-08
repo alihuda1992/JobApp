@@ -2,7 +2,28 @@ import type { Job } from '@/types'
 
 const APP_ID = import.meta.env.VITE_ADZUNA_APP_ID as string
 const APP_KEY = import.meta.env.VITE_ADZUNA_APP_KEY as string
-const BASE = 'https://api.adzuna.com/v1/api/jobs/us/search'
+const BASE = 'https://api.adzuna.com/v1/api/jobs'
+
+export const COUNTRIES: { code: string; label: string; currency: string }[] = [
+  { code: 'us', label: 'United States', currency: 'USD' },
+  { code: 'ca', label: 'Canada',        currency: 'CAD' },
+  { code: 'gb', label: 'United Kingdom',currency: 'GBP' },
+  { code: 'au', label: 'Australia',     currency: 'AUD' },
+  { code: 'de', label: 'Germany',       currency: 'EUR' },
+  { code: 'fr', label: 'France',        currency: 'EUR' },
+  { code: 'in', label: 'India',         currency: 'INR' },
+  { code: 'nl', label: 'Netherlands',   currency: 'EUR' },
+  { code: 'sg', label: 'Singapore',     currency: 'SGD' },
+  { code: 'nz', label: 'New Zealand',   currency: 'NZD' },
+  { code: 'za', label: 'South Africa',  currency: 'ZAR' },
+  { code: 'br', label: 'Brazil',        currency: 'BRL' },
+  { code: 'mx', label: 'Mexico',        currency: 'MXN' },
+  { code: 'it', label: 'Italy',         currency: 'EUR' },
+  { code: 'ch', label: 'Switzerland',   currency: 'CHF' },
+  { code: 'at', label: 'Austria',       currency: 'EUR' },
+  { code: 'be', label: 'Belgium',       currency: 'EUR' },
+  { code: 'pl', label: 'Poland',        currency: 'PLN' },
+]
 
 interface AdzunaResult {
   id: string
@@ -29,10 +50,12 @@ export async function searchJobs(params: {
   location?: string
   salaryMin?: number
   page?: number
+  country?: string
 }): Promise<Job[]> {
-  const { query, location, salaryMin, page = 1 } = params
+  const { query, location, salaryMin, page = 1, country = 'us' } = params
+  const currency = COUNTRIES.find((c) => c.code === country)?.currency ?? 'USD'
 
-  const url = new URL(`${BASE}/${page}`)
+  const url = new URL(`${BASE}/${country}/search/${page}`)
   url.searchParams.set('app_id', APP_ID)
   url.searchParams.set('app_key', APP_KEY)
   url.searchParams.set('what', query)
@@ -63,7 +86,7 @@ export async function searchJobs(params: {
     location: r.location?.display_name ?? null,
     salary_min: r.salary_min ?? null,
     salary_max: r.salary_max ?? null,
-    salary_currency: 'USD',
+    salary_currency: currency,
     description: r.description,
     tags: [],
     url: r.redirect_url,
