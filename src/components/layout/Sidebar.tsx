@@ -16,7 +16,7 @@ export function Sidebar() {
       {/* Desktop sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <span className="sidebar-logo-text">The Job App</span>
+          <NavLink to="/" className="sidebar-logo-text">The Job App</NavLink>
         </div>
 
         <nav className="sidebar-nav">
@@ -86,6 +86,7 @@ export function Sidebar() {
           font-size: 20px;
           color: var(--color-text);
           letter-spacing: -0.3px;
+          text-decoration: none;
         }
 
         .sidebar-nav {
