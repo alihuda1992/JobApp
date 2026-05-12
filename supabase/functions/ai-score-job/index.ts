@@ -19,20 +19,26 @@ const SYSTEM_PROMPT = `You are a job matching engine. Compare a candidate's resu
     "industry": <integer 0-100>
   }
 }
-Score represents overall fit. Return only the JSON object, no explanation.`
+Score represents overall fit. If candidate preferences are provided, weight the seniority score based on how well the role's level matches their target. Return only the JSON object, no explanation.`
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const { resume_parsed, job_description } = await req.json()
+    const { resume_parsed, job_description, user_preferences } = await req.json()
     if (!resume_parsed || !job_description) {
       return new Response(JSON.stringify({ error: 'resume_parsed and job_description are required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const text = `RESUME:\n${JSON.stringify(resume_parsed, null, 2)}\n\nJOB DESCRIPTION:\n${job_description}`
+    let text = `RESUME:\n${JSON.stringify(resume_parsed, null, 2)}\n\nJOB DESCRIPTION:\n${job_description}`
+    if (user_preferences) {
+      const parts: string[] = []
+      if (user_preferences.seniority) parts.push(`Target seniority: ${user_preferences.seniority}`)
+      if (user_preferences.target_titles?.length) parts.push(`Target titles: ${user_preferences.target_titles.join(', ')}`)
+      if (parts.length) text += `\n\nCANDIDATE PREFERENCES:\n${parts.join('\n')}`
+    }
 
     const res = await fetch(GEMINI_URL, {
       method: 'POST',

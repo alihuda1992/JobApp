@@ -4,7 +4,6 @@ import { useAppStore } from '@/store/useAppStore'
 
 const LOCATION_CHIPS = ['Remote', 'New York', 'San Francisco', 'London', 'Austin']
 const SENIORITY_OPTIONS = ['junior', 'mid', 'senior', 'lead', 'director'] as const
-const COMPANY_SIZE_OPTIONS = ['startup', 'mid-size', 'enterprise']
 
 export function Settings() {
   const { profile, setProfile } = useAppStore()
@@ -18,7 +17,6 @@ export function Settings() {
   const [customLocation, setCustomLocation] = useState('')
   const [minSalary, setMinSalary] = useState('')
   const [seniority, setSeniority] = useState('')
-  const [companySizes, setCompanySizes] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
 
@@ -42,7 +40,6 @@ export function Settings() {
     setPreferredLocations(profile.preferred_locations ?? [])
     setMinSalary(profile.min_salary_usd != null ? String(profile.min_salary_usd) : '')
     setSeniority(profile.seniority ?? '')
-    setCompanySizes(profile.company_size_prefs ?? [])
   }, [profile])
 
   function addTargetTitle() {
@@ -67,12 +64,6 @@ export function Settings() {
     setCustomLocation('')
   }
 
-  function toggleCompanySize(size: string) {
-    setCompanySizes((prev) =>
-      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
-    )
-  }
-
   async function handleSaveProfile() {
     if (!profile) return
     setSaving(true)
@@ -85,7 +76,6 @@ export function Settings() {
       preferred_locations: preferredLocations,
       min_salary_usd: minSalary ? parseInt(minSalary) : null,
       seniority: seniority || null,
-      company_size_prefs: companySizes,
     }).select().single()
     setSaving(false)
     if (error) {
@@ -263,22 +253,6 @@ export function Settings() {
                 <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
               ))}
             </select>
-          </div>
-        </div>
-
-        <div className="form-field">
-          <label className="form-label">Company size</label>
-          <div className="chip-group">
-            {COMPANY_SIZE_OPTIONS.map((size) => (
-              <button
-                type="button"
-                key={size}
-                className={`chip${companySizes.includes(size) ? ' chip--active' : ''}`}
-                onClick={() => toggleCompanySize(size)}
-              >
-                {size.charAt(0).toUpperCase() + size.slice(1)}
-              </button>
-            ))}
           </div>
         </div>
 

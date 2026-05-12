@@ -111,8 +111,8 @@ export function Search() {
 
   const [tab, setTab] = useState<Tab>('search')
   const [query, setQuery] = useState('')
-  const [location, setLocation] = useState('')
-  const [salaryMin, setSalaryMin] = useState('')
+  const [location, setLocation] = useState(profile?.preferred_locations?.[0] ?? '')
+  const [salaryMin, setSalaryMin] = useState(profile?.min_salary_usd?.toString() ?? '')
   const [country, setCountry] = useState('us')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -128,6 +128,8 @@ export function Search() {
   const hasResume = !!resume?.parsed
   const resumeUploaded = !!resume
 
+  const userPreferences = profile ? { seniority: profile.seniority, target_titles: profile.target_titles } : undefined
+
   const scoreInBatches = useCallback(
     async (jobs: Job[]) => {
       if (!hasResume) return
@@ -137,7 +139,7 @@ export function Search() {
           jobs.slice(i, i + BATCH).map(async (job) => {
             try {
               const { data } = await supabase.functions.invoke('ai-score-job', {
-                body: { resume_parsed: resume!.parsed, job_description: job.description },
+                body: { resume_parsed: resume!.parsed, job_description: job.description, user_preferences: userPreferences },
               })
               if (data?.score !== undefined) {
                 updateJobScore(job.id, data.score, data.breakdown ?? null)
@@ -149,7 +151,7 @@ export function Search() {
         )
       }
     },
-    [hasResume, resume, updateJobScore]
+    [hasResume, resume, updateJobScore, userPreferences]
   )
 
   async function runSearch(q: string, loc?: string) {
@@ -225,7 +227,7 @@ export function Search() {
 
       if (hasResume && job) {
         const { data: scored } = await supabase.functions.invoke('ai-score-job', {
-          body: { resume_parsed: resume!.parsed, job_description: pasteJD },
+          body: { resume_parsed: resume!.parsed, job_description: pasteJD, user_preferences: userPreferences },
         })
         if (scored?.score !== undefined) {
           await supabase
@@ -314,7 +316,7 @@ export function Search() {
       const capturedJobId = dbJobId
       supabase.functions
         .invoke('ai-score-job', {
-          body: { resume_parsed: resume.parsed, job_description: job.description },
+          body: { resume_parsed: resume.parsed, job_description: job.description, user_preferences: userPreferences },
         })
         .then(({ data }) => {
           if (data?.score !== undefined) {

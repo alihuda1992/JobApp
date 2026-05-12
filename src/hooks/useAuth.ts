@@ -7,17 +7,15 @@ import type { Profile, Resume } from '@/types'
 
 interface AuthState {
   user: User | null
-  profile: Profile | null
   loading: boolean
   signOut: () => Promise<void>
 }
 
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
-  const { setResume } = useAppStore()
+  const { setResume, setProfile } = useAppStore()
 
   async function fetchActiveResume(userId: string) {
     const { data } = await supabase
@@ -89,5 +87,5 @@ export function useAuth(): AuthState {
     navigate('/login', { replace: true })
   }
 
-  return { user, profile, loading, signOut }
+  return { user, loading, signOut }
 }

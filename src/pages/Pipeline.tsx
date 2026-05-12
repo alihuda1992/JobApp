@@ -176,7 +176,7 @@ export function Pipeline() {
     let cancelled = false
     let channel: ReturnType<typeof supabase.channel> | null = null
 
-    async function scoreUnscored(apps: Application[], resumeParsed: unknown) {
+    async function scoreUnscored(apps: Application[], resumeParsed: unknown, userPrefs?: { seniority: string | null; target_titles: string[] }) {
       const unscored = apps.filter((a) => a.job && a.job.match_score === null && a.job.description)
       if (!unscored.length) return
       const BATCH = 3
@@ -185,7 +185,7 @@ export function Pipeline() {
         await Promise.all(
           unscored.slice(i, i + BATCH).map(async (app) => {
             const { data } = await supabase.functions.invoke('ai-score-job', {
-              body: { resume_parsed: resumeParsed, job_description: app.job!.description },
+              body: { resume_parsed: resumeParsed, job_description: app.job!.description, user_preferences: userPrefs },
             })
             if (data?.score !== undefined && !cancelled) {
               await supabase
@@ -232,7 +232,8 @@ export function Pipeline() {
       setLoading(false)
 
       const resumeParsed = resumeResult.data?.parsed ?? resume?.parsed
-      if (resumeParsed) scoreUnscored(apps, resumeParsed)
+      const userPrefs = profile ? { seniority: profile.seniority, target_titles: profile.target_titles } : undefined
+      if (resumeParsed) scoreUnscored(apps, resumeParsed, userPrefs)
 
       channel = supabase
         .channel('pipeline-apps')
