@@ -2,10 +2,19 @@ import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { searchJobs, adzunaConfigured, COUNTRIES } from '@/lib/adzuna'
+import { searchRemotive } from '@/lib/remotive'
+import { searchArbeitnow } from '@/lib/arbeitnow'
 import { useAppStore } from '@/store/useAppStore'
 import type { Job } from '@/types'
 
 type Tab = 'search' | 'paste'
+
+const SOURCE_LABELS: Record<string, string> = {
+  adzuna: 'Adzuna',
+  remotive: 'Remotive',
+  arbeitnow: 'Arbeitnow',
+  manual: 'Manual',
+}
 
 function formatSalary(min: number | null, max: number | null): string | null {
   if (!min && !max) return null
@@ -92,7 +101,7 @@ function JobCard({
         </div>
       </div>
       <div className="job-card-footer">
-        <span className="source-badge">{job.source === 'adzuna' ? 'Adzuna' : 'Manual'}</span>
+        <span className="source-badge">{SOURCE_LABELS[job.source] ?? job.source}</span>
         <button
           className={`btn ${saved || justSaved ? 'btn-saved' : 'btn-ghost'} save-btn`}
           onClick={handleSave}
@@ -158,20 +167,36 @@ export function Search() {
     setError(null)
     setLoading(true)
     setSearchResults([])
-    try {
-      const jobs = await searchJobs({
-        query: q,
-        location: loc ?? (location || undefined),
-        salaryMin: salaryMin ? Number(salaryMin) : undefined,
-        country,
-      })
-      setSearchResults(jobs)
-      scoreInBatches(jobs)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Search failed')
-    } finally {
-      setLoading(false)
+
+    const effectiveLoc = loc ?? (location || undefined)
+
+    const [adzunaResult, remotiveResult, arbeitnowResult] = await Promise.allSettled([
+      searchJobs({ query: q, location: effectiveLoc, salaryMin: salaryMin ? Number(salaryMin) : undefined, country }),
+      searchRemotive(q),
+      searchArbeitnow(q),
+    ])
+
+    const all: Job[] = [
+      ...(adzunaResult.status === 'fulfilled' ? adzunaResult.value : []),
+      ...(remotiveResult.status === 'fulfilled' ? remotiveResult.value : []),
+      ...(arbeitnowResult.status === 'fulfilled' ? arbeitnowResult.value : []),
+    ]
+
+    if (all.length === 0 && adzunaResult.status === 'rejected') {
+      setError(adzunaResult.reason instanceof Error ? adzunaResult.reason.message : 'Search failed')
     }
+
+    const seen = new Set<string>()
+    const unique = all.filter((j) => {
+      if (!j.url) return true
+      if (seen.has(j.url)) return false
+      seen.add(j.url)
+      return true
+    })
+
+    setSearchResults(unique)
+    scoreInBatches(unique)
+    setLoading(false)
   }
 
   async function handleSearch(e: React.FormEvent) {

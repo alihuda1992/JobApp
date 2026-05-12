@@ -49,7 +49,7 @@ export interface Resume {
 export interface Job {
   id: string
   user_id: string
-  source: 'adzuna' | 'jsearch' | 'manual'
+  source: 'adzuna' | 'jsearch' | 'remotive' | 'arbeitnow' | 'manual'
   external_id: string | null
   title: string
   company: string | null
