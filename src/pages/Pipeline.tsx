@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/useAppStore'
@@ -72,6 +72,7 @@ function AppCard({
     <div
       className="app-card card"
       draggable
+      data-card-id={app.id}
       onDragStart={() => onDragStart(app.id)}
       onDragEnd={onDragEnd}
       onClick={() => job && navigate(`/jobs/${job.id}`)}
@@ -130,6 +131,7 @@ function KanbanColumn({
   return (
     <div
       className={`kanban-col${isOver ? ' kanban-col-over' : ''}`}
+      data-col={column.key}
       onDragOver={(e) => {
         e.preventDefault()
         onDragOver(column.key)
@@ -169,6 +171,13 @@ export function Pipeline() {
   const [dragOver, setDragOver] = useState<KanbanStatus | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
+
+  const touchRef = useRef<{
+    cardId: string | null; colOver: KanbanStatus | null
+    startX: number; startY: number; active: boolean; cardEl: HTMLElement | null
+  }>({ cardId: null, colOver: null, startX: 0, startY: 0, active: false, cardEl: null })
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const moveCardRef = useRef<(status: KanbanStatus, cardId?: string) => Promise<void>>(async () => {})
 
   const notionConnected = !!(profile as any)?.notion_token && !!(profile as any)?.notion_db_id
 
@@ -264,9 +273,10 @@ export function Pipeline() {
     }
   }, [])
 
-  async function moveCard(targetStatus: KanbanStatus) {
-    if (!dragId) return
-    const app = applications.find((a) => a.id === dragId)
+  async function moveCard(targetStatus: KanbanStatus, cardId?: string) {
+    const id = cardId ?? dragId
+    if (!id) return
+    const app = applications.find((a) => a.id === id)
     if (!app || app.status === targetStatus) return
 
     const patch: Record<string, unknown> = { status: targetStatus }
@@ -276,14 +286,14 @@ export function Pipeline() {
 
     const updated = { ...app, status: targetStatus, applied_at: (patch.applied_at as string) ?? app.applied_at }
     upsertApplication(updated)
-    await supabase.from('applications').update(patch).eq('id', dragId)
+    await supabase.from('applications').update(patch).eq('id', id)
 
-    // Auto-sync to Notion if connected (fire-and-forget)
     const p = profile as any
     if (p?.notion_token && p?.notion_db_id) {
       notionUpsert(updated, p.notion_token, p.notion_db_id)
     }
   }
+  moveCardRef.current = moveCard
 
   async function handleSyncAll() {
     const p = profile as any
@@ -304,6 +314,65 @@ export function Pipeline() {
       setSyncing(false)
     }
   }
+
+  useEffect(() => {
+    function onTouchStart(e: TouchEvent) {
+      const cardEl = (e.target as HTMLElement).closest('[data-card-id]') as HTMLElement | null
+      if (!cardEl) return
+      const touch = e.touches[0]
+      touchRef.current = { cardId: cardEl.dataset.cardId!, colOver: null, startX: touch.clientX, startY: touch.clientY, active: false, cardEl }
+      longPressTimer.current = setTimeout(() => {
+        if (touchRef.current.cardId) {
+          touchRef.current.active = true
+          cardEl.classList.add('app-card--lifting')
+          if ('vibrate' in navigator) navigator.vibrate(30)
+        }
+      }, 300)
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      const state = touchRef.current
+      if (!state.cardId) return
+      const touch = e.touches[0]
+      if (!state.active) {
+        if (Math.abs(touch.clientX - state.startX) > 6 || Math.abs(touch.clientY - state.startY) > 6) {
+          if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+          touchRef.current.cardId = null
+        }
+        return
+      }
+      e.preventDefault()
+      document.querySelectorAll('.kanban-col-over').forEach(el => el.classList.remove('kanban-col-over'))
+      state.colOver = null
+      for (const el of document.elementsFromPoint(touch.clientX, touch.clientY)) {
+        const colEl = (el as HTMLElement).closest('[data-col]') as HTMLElement | null
+        if (colEl?.dataset.col) {
+          colEl.classList.add('kanban-col-over')
+          state.colOver = colEl.dataset.col as KanbanStatus
+          break
+        }
+      }
+    }
+
+    function onTouchEnd() {
+      if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+      const { cardId, active, colOver, cardEl } = touchRef.current
+      cardEl?.classList.remove('app-card--lifting')
+      document.querySelectorAll('.kanban-col-over').forEach(el => el.classList.remove('kanban-col-over'))
+      if (active && cardId && colOver) moveCardRef.current(colOver, cardId)
+      touchRef.current = { cardId: null, colOver: null, startX: 0, startY: 0, active: false, cardEl: null }
+    }
+
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchmove', onTouchMove, { passive: false })
+    document.addEventListener('touchend', onTouchEnd)
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchmove', onTouchMove)
+      document.removeEventListener('touchend', onTouchEnd)
+      if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    }
+  }, [])
 
   async function deleteApplication(id: string) {
     removeApplication(id)
@@ -483,6 +552,11 @@ export function Pipeline() {
           border-color: var(--color-border-hover);
         }
         .app-card:active { cursor: grabbing; }
+        .app-card--lifting {
+          opacity: 0.6;
+          transform: scale(0.97);
+          border-color: var(--color-accent) !important;
+        }
         .app-card-header {
           display: flex;
           align-items: flex-start;
