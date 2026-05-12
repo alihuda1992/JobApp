@@ -165,7 +165,8 @@ export function Sidebar() {
             bottom: 0;
             left: 0;
             right: 0;
-            height: 60px;
+            height: auto;
+            padding-bottom: env(safe-area-inset-bottom);
             background: var(--color-bg);
             border-top: 1px solid var(--color-border);
             z-index: 10;
@@ -178,6 +179,7 @@ export function Sidebar() {
             align-items: center;
             justify-content: center;
             gap: 3px;
+            height: 60px;
             color: rgba(242, 240, 234, 0.45);
             text-decoration: none;
             transition: color 0.15s ease;

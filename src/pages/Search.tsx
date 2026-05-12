@@ -526,6 +526,13 @@ export function Search() {
       <style>{`
         .search-page { padding: 32px; max-width: 900px; }
         .page-title { font-size: 28px; margin-bottom: 20px; }
+        @media (max-width: 600px) {
+          .search-page { padding: 16px; }
+          .page-title { font-size: 22px; margin-bottom: 14px; }
+          .search-tabs { flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+          .tab-btn { padding: 6px 14px; font-size: 12px; }
+          .paste-panel { max-width: none; }
+        }
         .banner-info, .banner-warn {
           display: flex; align-items: center; justify-content: space-between;
           padding: 10px 14px; border-radius: var(--radius-btn);

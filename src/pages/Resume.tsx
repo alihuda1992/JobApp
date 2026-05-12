@@ -659,6 +659,23 @@ export function Resume() {
         .res-done-btn { font-size: 12px; padding: 5px 14px; }
         .res-empty-field { font-style: italic; color: rgba(242,240,234,0.3); font-size: 13px; }
 
+        @media (max-width: 600px) {
+          .res-page { padding: 16px; }
+          .res-title { font-size: 22px; }
+          .res-page-header { flex-wrap: wrap; gap: 10px; }
+          .res-save-btn { width: 100%; }
+          .res-upload { padding: 12px 14px; }
+          .res-upload-row { flex-direction: column; align-items: stretch; }
+          .res-file-btn { max-width: none; text-overflow: ellipsis; overflow: hidden; }
+          .res-section { padding: 14px 16px; }
+          .res-section-header { flex-wrap: wrap; gap: 8px; }
+          .res-exp-header { flex-direction: column; gap: 8px; }
+          .res-exp-actions { flex-wrap: wrap; }
+          .res-edit-actions { flex-wrap: wrap; }
+          .rw-panel-header { flex-wrap: wrap; gap: 8px; }
+          .rw-actions { margin-left: 0; }
+        }
+
         /* Rewrite panel */
         .rw-panel {
           margin-top: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);

@@ -386,7 +386,7 @@ export function Pipeline() {
       <style>{`
         .pipeline-page {
           padding: 32px;
-          height: 100vh;
+          height: 100dvh;
           display: flex;
           flex-direction: column;
           overflow: hidden;
@@ -564,9 +564,12 @@ export function Pipeline() {
           50% { opacity: 1; }
         }
         @media (max-width: 768px) {
-          .pipeline-page { height: auto; overflow: visible; }
-          .kanban-board, .pipeline-loading { overflow-x: auto; padding-bottom: 16px; }
-          .kanban-col { width: 220px; }
+          .pipeline-page { height: auto; overflow: visible; padding: 16px 16px 0; }
+          .pipeline-header { padding-bottom: 14px; }
+          .page-title { font-size: 22px; }
+          .kanban-board, .pipeline-loading { overflow-x: auto; padding-bottom: 16px; -webkit-overflow-scrolling: touch; }
+          .kanban-col { width: 200px; }
+          .pipeline-notion { flex-direction: column; align-items: flex-end; gap: 6px; }
         }
       `}</style>
     </div>

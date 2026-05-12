@@ -570,8 +570,14 @@ export function Settings() {
         }
 
         @media (max-width: 600px) {
-          .settings-page { padding: 20px 16px; }
+          .settings-page { padding: 16px; }
+          .settings-title { font-size: 22px; }
+          .settings-section { padding: 16px; }
           .settings-row-2 { grid-template-columns: 1fr; }
+          .settings-save-row { flex-direction: column; align-items: stretch; }
+          .settings-save-row button { width: 100%; }
+          .notion-actions { flex-wrap: wrap; }
+          .notion-actions button { flex: 1; min-width: 120px; }
         }
       `}</style>
     </div>

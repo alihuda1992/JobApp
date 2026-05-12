@@ -26,6 +26,7 @@ export function AppLayout() {
         @media (max-width: 768px) {
           .app-main {
             margin-left: 0;
+            padding-bottom: calc(60px + env(safe-area-inset-bottom));
           }
         }
       `}</style>

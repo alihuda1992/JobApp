@@ -300,6 +300,18 @@ export function JobDetail() {
           .jd-layout { grid-template-columns: 1fr; }
           .jd-panel { order: -1; }
         }
+        @media (max-width: 600px) {
+          .jd-page { padding: 16px; }
+          .back-link { margin-bottom: 16px; }
+          .jd-title { font-size: 20px; margin-bottom: 10px; }
+          .jd-score-block { flex-direction: column; gap: 16px; padding: 14px; }
+          .jd-score-number { flex-direction: row; align-items: baseline; gap: 10px; min-width: 0; }
+          .jd-score-val { font-size: 38px; }
+          .jd-score-label { margin-top: 0; }
+          .jd-body { max-height: 320px; }
+          .jd-panel-inner { position: static; }
+          .jd-layout { gap: 16px; }
+        }
 
         .jd-title { font-size: 28px; margin-bottom: 14px; line-height: 1.25; }
         .jd-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 24px; }
