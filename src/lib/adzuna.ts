@@ -55,12 +55,15 @@ export async function searchJobs(params: {
   const { query, location, salaryMin, page = 1, country = 'us' } = params
   const currency = COUNTRIES.find((c) => c.code === country)?.currency ?? 'USD'
 
+  const isRemote = location?.toLowerCase() === 'remote'
+  const effectiveQuery = isRemote ? `${query} remote` : query
+
   const url = new URL(`${BASE}/${country}/search/${page}`)
   url.searchParams.set('app_id', APP_ID)
   url.searchParams.set('app_key', APP_KEY)
-  url.searchParams.set('what', query)
+  url.searchParams.set('what', effectiveQuery)
   url.searchParams.set('results_per_page', '20')
-  if (location) url.searchParams.set('where', location)
+  if (location && !isRemote) url.searchParams.set('where', location)
   if (salaryMin) url.searchParams.set('salary_min', String(salaryMin))
 
   let res: Response
