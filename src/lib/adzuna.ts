@@ -4,6 +4,34 @@ const APP_ID = import.meta.env.VITE_ADZUNA_APP_ID as string
 const APP_KEY = import.meta.env.VITE_ADZUNA_APP_KEY as string
 const BASE = 'https://api.adzuna.com/v1/api/jobs'
 
+export const CATEGORIES: { value: string; label: string }[] = [
+  { value: '',                       label: 'Any Industry' },
+  { value: 'it-jobs',                label: 'IT & Technology' },
+  { value: 'consultancy-jobs',       label: 'Consulting' },
+  { value: 'accounting-finance-jobs',label: 'Finance & Accounting' },
+  { value: 'marketing-jobs',         label: 'Marketing' },
+  { value: 'sales-jobs',             label: 'Sales' },
+  { value: 'engineering-jobs',       label: 'Engineering' },
+  { value: 'hr-jobs',                label: 'Human Resources' },
+  { value: 'legal-jobs',             label: 'Legal' },
+  { value: 'healthcare-nursing-jobs',label: 'Healthcare & Nursing' },
+  { value: 'creative-design-jobs',   label: 'Creative & Design' },
+  { value: 'customer-services-jobs', label: 'Customer Service' },
+  { value: 'logistics-warehouse-jobs',label: 'Logistics & Warehouse' },
+  { value: 'manufacturing-jobs',     label: 'Manufacturing' },
+  { value: 'teaching-jobs',          label: 'Education & Teaching' },
+  { value: 'scientific-qa-jobs',     label: 'Science & QA' },
+  { value: 'public-sector-jobs',     label: 'Public Sector' },
+  { value: 'social-work-jobs',       label: 'Social Work' },
+  { value: 'property-jobs',          label: 'Property & Real Estate' },
+  { value: 'retail-jobs',            label: 'Retail' },
+  { value: 'hospitality-catering-jobs', label: 'Hospitality & Catering' },
+  { value: 'trade-construction-jobs',label: 'Trade & Construction' },
+  { value: 'energy-oil-gas-jobs',    label: 'Energy & Oil/Gas' },
+  { value: 'travel-jobs',            label: 'Travel & Tourism' },
+  { value: 'graduate-jobs',          label: 'Graduate' },
+]
+
 export const COUNTRIES: { code: string; label: string; currency: string }[] = [
   { code: 'us', label: 'United States', currency: 'USD' },
   { code: 'ca', label: 'Canada',        currency: 'CAD' },
@@ -51,8 +79,9 @@ export async function searchJobs(params: {
   salaryMin?: number
   page?: number
   country?: string
+  category?: string
 }): Promise<Job[]> {
-  const { query, location, salaryMin, page = 1, country = 'us' } = params
+  const { query, location, salaryMin, page = 1, country = 'us', category } = params
   const currency = COUNTRIES.find((c) => c.code === country)?.currency ?? 'USD'
 
   const isRemote = location?.toLowerCase() === 'remote'
@@ -65,6 +94,7 @@ export async function searchJobs(params: {
   url.searchParams.set('results_per_page', '20')
   if (location && !isRemote) url.searchParams.set('where', location)
   if (salaryMin) url.searchParams.set('salary_min', String(salaryMin))
+  if (category) url.searchParams.set('category', category)
 
   let res: Response
   try {

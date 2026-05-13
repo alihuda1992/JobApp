@@ -1,13 +1,13 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { searchJobs, adzunaConfigured, COUNTRIES } from '@/lib/adzuna'
+import { searchJobs, adzunaConfigured, COUNTRIES, CATEGORIES } from '@/lib/adzuna'
 import { searchRemotive } from '@/lib/remotive'
 import { searchArbeitnow } from '@/lib/arbeitnow'
 import { useAppStore } from '@/store/useAppStore'
 import type { Job } from '@/types'
 
-type Tab = 'search' | 'paste'
+type Tab = 'search' | 'paste' | 'ai'
 
 const SOURCE_LABELS: Record<string, string> = {
   adzuna: 'Adzuna',
@@ -123,6 +123,7 @@ export function Search() {
   const [location, setLocation] = useState(profile?.preferred_locations?.[0] ?? '')
   const [salaryMin, setSalaryMin] = useState(profile?.min_salary_usd?.toString() ?? '')
   const [country, setCountry] = useState('us')
+  const [category, setCategory] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [bannerDismissed, setBannerDismissed] = useState(false)
@@ -132,6 +133,11 @@ export function Search() {
   const [pasteJD, setPasteJD] = useState('')
   const [pasteLoading, setPasteLoading] = useState(false)
   const [pasteError, setPasteError] = useState<string | null>(null)
+
+  const [aiInput, setAiInput] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiParsed, setAiParsed] = useState<{ query: string; location: string | null; salary_min: number | null; country: string; category: string | null } | null>(null)
 
   const noAdzuna = !adzunaConfigured()
   const hasResume = !!resume?.parsed
@@ -163,15 +169,16 @@ export function Search() {
     [hasResume, resume, updateJobScore, userPreferences]
   )
 
-  async function runSearch(q: string, loc?: string) {
+  async function runSearch(q: string, loc?: string, cat?: string) {
     setError(null)
     setLoading(true)
     setSearchResults([])
 
     const effectiveLoc = loc ?? (location || undefined)
+    const effectiveCat = cat !== undefined ? cat : (category || undefined)
 
     const [adzunaResult, remotiveResult, arbeitnowResult] = await Promise.allSettled([
-      searchJobs({ query: q, location: effectiveLoc, salaryMin: salaryMin ? Number(salaryMin) : undefined, country }),
+      searchJobs({ query: q, location: effectiveLoc, salaryMin: salaryMin ? Number(salaryMin) : undefined, country, category: effectiveCat }),
       searchRemotive(q),
       searchArbeitnow(q),
     ])
@@ -206,7 +213,7 @@ export function Search() {
 
   function handleChipClick(chip: string) {
     setQuery(chip)
-    runSearch(chip)
+    runSearch(chip, undefined, category || undefined)
   }
 
   // Suggestions: target titles first, then recent experience titles, deduplicated
@@ -267,6 +274,33 @@ export function Search() {
       setPasteError(err instanceof Error ? err.message : 'Failed to save job')
     } finally {
       setPasteLoading(false)
+    }
+  }
+
+  async function handleAiSearch(e: React.FormEvent) {
+    e.preventDefault()
+    if (!aiInput.trim()) return
+    setAiError(null)
+    setAiParsed(null)
+    setAiLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-parse-search-intent', {
+        body: { description: aiInput },
+      })
+      if (error) throw error
+      const parsed = data as { query: string; location: string | null; salary_min: number | null; country: string; category: string | null }
+      setAiParsed(parsed)
+      setQuery(parsed.query ?? '')
+      setLocation(parsed.location ?? '')
+      setSalaryMin(parsed.salary_min != null ? String(parsed.salary_min) : '')
+      setCountry(parsed.country ?? 'us')
+      setCategory(parsed.category ?? '')
+      setTab('search')
+      runSearch(parsed.query ?? '', parsed.location ?? undefined, parsed.category ?? '')
+    } catch {
+      setAiError('Could not parse your search — try rephrasing.')
+    } finally {
+      setAiLoading(false)
     }
   }
 
@@ -387,6 +421,12 @@ export function Search() {
           Search Jobs
         </button>
         <button
+          className={`tab-btn tab-btn-ai ${tab === 'ai' ? 'tab-active' : ''}`}
+          onClick={() => setTab('ai')}
+        >
+          ✦ AI Search
+        </button>
+        <button
           className={`tab-btn tab-btn-add ${tab === 'paste' ? 'tab-active' : ''}`}
           onClick={() => setTab('paste')}
         >
@@ -403,7 +443,7 @@ export function Search() {
           )}
           <form className="search-form" onSubmit={handleSearch}>
             <input
-              className="input-base"
+              className="input-base search-query"
               placeholder="Job title or keywords"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -417,10 +457,20 @@ export function Search() {
               onChange={(e) => setLocation(e.target.value)}
               disabled={noAdzuna}
             />
+            <select
+              className="input-base"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              disabled={noAdzuna}
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
             <input
               className="input-base"
               type="number"
-              placeholder="Min salary (optional)"
+              placeholder="Min salary"
               value={salaryMin}
               onChange={(e) => setSalaryMin(e.target.value)}
               disabled={noAdzuna}
@@ -435,7 +485,7 @@ export function Search() {
                 <option key={c.code} value={c.code}>{c.label}</option>
               ))}
             </select>
-            <button type="submit" className="btn btn-primary" disabled={loading || noAdzuna}>
+            <button type="submit" className="btn btn-primary search-submit" disabled={loading || noAdzuna}>
               {loading ? 'Searching…' : 'Search'}
             </button>
           </form>
@@ -479,6 +529,47 @@ export function Search() {
 
           {!loading && searchResults.length === 0 && !error && query && (
             <p className="no-results">No results found. Try different keywords or location.</p>
+          )}
+        </div>
+      )}
+
+      {tab === 'ai' && (
+        <div className="ai-panel">
+          <p className="ai-panel-hint">
+            Describe the role you're looking for in plain English — seniority, skills, location, salary, anything.
+            AI will extract the right search parameters and find matching jobs.
+          </p>
+          <form className="ai-form" onSubmit={handleAiSearch}>
+            <textarea
+              className="input-base ai-textarea"
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+              placeholder="e.g. I'm looking for a senior backend role in Python or Go, ideally remote, paying at least $130k. Interested in fintech or infra."
+              required
+              disabled={aiLoading}
+            />
+            {aiError && <div className="search-error">{aiError}</div>}
+            <button type="submit" className="btn btn-primary ai-submit" disabled={aiLoading || !aiInput.trim()}>
+              {aiLoading ? 'Analysing…' : 'Find Jobs ✦'}
+            </button>
+          </form>
+          {aiParsed && (
+            <div className="ai-parsed">
+              <span className="ai-parsed-label">Searched for</span>
+              <div className="ai-parsed-chips">
+                <span className="ai-parsed-chip">{aiParsed.query}</span>
+                {aiParsed.location && <span className="ai-parsed-chip">{aiParsed.location}</span>}
+                {aiParsed.category && (
+                  <span className="ai-parsed-chip">
+                    {CATEGORIES.find(c => c.value === aiParsed.category)?.label ?? aiParsed.category}
+                  </span>
+                )}
+                {aiParsed.salary_min && (
+                  <span className="ai-parsed-chip">${Math.round(aiParsed.salary_min / 1000)}k+</span>
+                )}
+                <span className="ai-parsed-chip country-chip">{aiParsed.country.toUpperCase()}</span>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -575,18 +666,58 @@ export function Search() {
           border-color: var(--color-accent) !important;
           color: #fff !important;
         }
+        .tab-btn-ai {
+          background: rgba(255,255,255,0.05);
+          border-color: var(--color-border) !important;
+          color: var(--color-text) !important;
+        }
+        .tab-btn-ai:hover {
+          background: rgba(255,255,255,0.09);
+          border-color: var(--color-border-hover) !important;
+        }
+        .tab-btn-ai.tab-active {
+          background: rgba(99,139,255,0.15);
+          border-color: var(--color-accent) !important;
+          color: var(--color-accent) !important;
+        }
+        .ai-panel { max-width: 560px; }
+        .ai-panel-hint {
+          font-size: 13px; color: rgba(242,240,234,0.5); margin-bottom: 16px; line-height: 1.6;
+        }
+        .ai-form { display: flex; flex-direction: column; gap: 12px; }
+        .ai-textarea { min-height: 120px; resize: vertical; }
+        .ai-submit { align-self: flex-start; }
+        @media (max-width: 600px) { .ai-submit { width: 100%; } }
+        .ai-parsed { margin-top: 16px; }
+        .ai-parsed-label {
+          display: block; font-size: 11px; font-weight: 600; text-transform: uppercase;
+          letter-spacing: 0.5px; color: rgba(242,240,234,0.35); margin-bottom: 8px;
+        }
+        .ai-parsed-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+        .ai-parsed-chip {
+          font-size: 12px; padding: 4px 12px; border-radius: 20px;
+          background: rgba(99,139,255,0.1); border: 1px solid rgba(99,139,255,0.3);
+          color: var(--color-accent);
+        }
+        .country-chip {
+          font-family: "DM Mono", monospace; font-size: 11px; letter-spacing: 0.5px;
+        }
         .search-form {
-          display: grid; grid-template-columns: 1fr 1fr 1fr 150px auto;
+          display: grid;
+          grid-template-columns: 2fr 1fr 1fr;
           gap: 10px; margin-bottom: 20px; align-items: end;
         }
-        .search-country-select { cursor: pointer; }
-        @media (max-width: 760px) {
+        .search-submit { grid-column: 3; }
+        .search-country-select, .search-form select { cursor: pointer; }
+        @media (max-width: 640px) {
           .search-form { grid-template-columns: 1fr 1fr; }
-          .search-form button[type="submit"] { grid-column: span 2; }
+          .search-query { grid-column: span 2; }
+          .search-submit { grid-column: span 2; }
         }
-        @media (max-width: 480px) {
+        @media (max-width: 400px) {
           .search-form { grid-template-columns: 1fr; }
-          .search-form button[type="submit"] { grid-column: span 1; }
+          .search-query { grid-column: 1; }
+          .search-submit { grid-column: 1; }
         }
         .search-error {
           background: rgba(220,50,50,0.12); border: 1px solid rgba(220,50,50,0.3);
