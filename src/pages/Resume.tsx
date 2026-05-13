@@ -16,9 +16,24 @@ async function extractText(file: File): Promise<string> {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i)
       const content = await page.getTextContent()
-      pages.push(content.items.map((item) => ('str' in item ? item.str : '')).join(' '))
+      // Group items by y-position to reconstruct line breaks
+      let lastY: number | null = null
+      const lines: string[] = []
+      let currentLine: string[] = []
+      for (const item of content.items) {
+        if (!('str' in item) || !item.str) continue
+        const y = Math.round((item as { transform: number[] }).transform[5])
+        if (lastY !== null && Math.abs(y - lastY) > 2) {
+          if (currentLine.length) lines.push(currentLine.join(' '))
+          currentLine = []
+        }
+        currentLine.push(item.str)
+        lastY = y
+      }
+      if (currentLine.length) lines.push(currentLine.join(' '))
+      pages.push(lines.join('\n'))
     }
-    return pages.join('\n')
+    return pages.join('\n\n')
   } else {
     const arrayBuffer = await file.arrayBuffer()
     const result = await mammoth.extractRawText({ arrayBuffer })
@@ -118,6 +133,8 @@ export function Resume() {
   const [uploading, setUploading] = useState(false)
   const [uploadStep, setUploadStep] = useState('')
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [reparsing, setReparsing] = useState(false)
+  const [reparseError, setReparseError] = useState<string | null>(null)
 
   // Per-section editing
   const [editingSection, setEditingSection] = useState<string | null>(null)
@@ -279,7 +296,7 @@ export function Resume() {
 
       setUploadStep('Parsing with AI…')
       const { data: fnData } = await supabase.functions.invoke('ai-parse-resume', {
-        body: { text: rawText },
+        body: { raw_text: rawText },
       })
 
       if (fnData?.parsed) {
@@ -301,6 +318,29 @@ export function Resume() {
     } finally {
       setUploading(false)
       setUploadStep('')
+    }
+  }
+
+  async function handleReparse() {
+    if (!resumeRow?.raw_text || reparsing) return
+    setReparsing(true)
+    setReparseError(null)
+    try {
+      const { data: fnData, error: fnErr } = await supabase.functions.invoke('ai-parse-resume', {
+        body: { raw_text: resumeRow.raw_text },
+      })
+      if (fnErr) throw fnErr
+      if (!fnData?.parsed) throw new Error('No parsed data returned')
+      await supabase.from('resumes').update({ parsed: fnData.parsed }).eq('id', resumeRow.id)
+      const updated = { ...resumeRow, parsed: fnData.parsed } as ResumeType
+      setResumeRow(updated)
+      setDraft(fnData.parsed)
+      setResume(updated)
+      setIsDirty(false)
+    } catch (e) {
+      setReparseError(e instanceof Error ? e.message : 'Re-parse failed')
+    } finally {
+      setReparsing(false)
     }
   }
 
@@ -352,13 +392,30 @@ export function Resume() {
             </button>
           )}
         </div>
+        {resumeRow?.raw_text && !uploadFile && (
+          <button
+            className="btn btn-ghost res-reparse-btn"
+            onClick={handleReparse}
+            disabled={reparsing}
+            title="Re-run AI parsing on the stored resume text"
+          >
+            {reparsing ? 'Re-parsing…' : 'Re-parse ✦'}
+          </button>
+        )}
         {uploading && (
           <div className="res-upload-progress">
             <div className="rw-dots"><span /><span /><span /></div>
             <span>{uploadStep}</span>
           </div>
         )}
+        {reparsing && (
+          <div className="res-upload-progress">
+            <div className="rw-dots"><span /><span /><span /></div>
+            <span>Re-parsing with AI…</span>
+          </div>
+        )}
         {uploadError && <p className="res-upload-error">{uploadError}</p>}
+        {reparseError && <p className="res-upload-error">{reparseError}</p>}
       </div>
 
       {!draft && (
@@ -597,6 +654,7 @@ export function Resume() {
         .res-upload-hint { font-size: 12px; color: rgba(242,240,234,0.4); }
         .res-upload-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .res-file-btn { font-size: 12px; padding: 7px 14px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .res-reparse-btn { font-size: 12px; padding: 7px 14px; }
         .res-upload-progress { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: rgba(242,240,234,0.5); }
         .res-upload-error { color: #f87171; font-size: 13px; margin-top: 8px; }
         .res-empty { color: rgba(242,240,234,0.4); font-size: 13px; margin-top: 8px; }
