@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/useAppStore'
+import { downloadCoverLetterPdf } from '@/lib/pdf'
 import type { Job, ResumeJSON } from '@/types'
 
 const TONES = [
@@ -19,7 +20,7 @@ const LENGTHS = [
 export function CoverLetter() {
   const { jobId } = useParams<{ jobId: string }>()
   const navigate = useNavigate()
-  const { resume: storeResume } = useAppStore()
+  const { resume: storeResume, profile } = useAppStore()
 
   const [job, setJob] = useState<Job | null>(null)
   const [resumeParsed, setResumeParsed] = useState<ResumeJSON | null>(null)
@@ -155,9 +156,17 @@ export function CoverLetter() {
           <div className="cl-output-header">
             <span className="ai-indicator">✦</span>
             <span>Generated Cover Letter</span>
-            <button className="btn btn-ghost cl-copy-btn" onClick={handleCopy}>
-              {copied ? 'Copied ✓' : 'Copy'}
-            </button>
+            <div className="cl-output-actions">
+              <button className="btn btn-ghost cl-copy-btn" onClick={handleCopy}>
+                {copied ? 'Copied ✓' : 'Copy'}
+              </button>
+              <button
+                className="btn btn-ghost cl-copy-btn"
+                onClick={() => downloadCoverLetterPdf(content, job?.title, job?.company, profile?.full_name)}
+              >
+                Download PDF
+              </button>
+            </div>
           </div>
           <textarea
             className="cl-output"
@@ -219,7 +228,8 @@ export function CoverLetter() {
           text-transform: uppercase; letter-spacing: 0.5px;
           color: rgba(242,240,234,0.55); margin-bottom: 8px;
         }
-        .cl-copy-btn { margin-left: auto; padding: 4px 12px; font-size: 12px; }
+        .cl-output-actions { margin-left: auto; display: flex; gap: 6px; }
+        .cl-copy-btn { padding: 4px 12px; font-size: 12px; }
         .cl-output {
           width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--color-border);
           border-radius: var(--radius-card); padding: 16px; font-family: inherit;

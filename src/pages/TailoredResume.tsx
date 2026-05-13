@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/useAppStore'
+import { downloadResumePdf } from '@/lib/pdf'
 import type { Job, ResumeJSON } from '@/types'
 
 function resumeToText(r: ResumeJSON, name?: string | null): string {
@@ -126,9 +127,17 @@ export function TailoredResume() {
         </button>
 
         {tailored && !generating && (
-          <button className="btn btn-ghost tr-copy-btn" onClick={handleCopy}>
-            {copied ? 'Copied ✓' : 'Copy as Text'}
-          </button>
+          <>
+            <button className="btn btn-ghost tr-copy-btn" onClick={handleCopy}>
+              {copied ? 'Copied ✓' : 'Copy as Text'}
+            </button>
+            <button
+              className="btn btn-ghost tr-copy-btn"
+              onClick={() => downloadResumePdf(tailored, profile?.full_name, job?.title, job?.company)}
+            >
+              Download PDF
+            </button>
+          </>
         )}
       </div>
 
