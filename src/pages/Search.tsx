@@ -128,8 +128,12 @@ export function Search() {
   const [error, setError] = useState<string | null>(null)
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
+  const [pasteUrl, setPasteUrl] = useState('')
+  const [pasteUrlLoading, setPasteUrlLoading] = useState(false)
+  const [pasteUrlError, setPasteUrlError] = useState<string | null>(null)
   const [pasteTitle, setPasteTitle] = useState('')
   const [pasteCompany, setPasteCompany] = useState('')
+  const [pasteLocation, setPasteLocation] = useState('')
   const [pasteJD, setPasteJD] = useState('')
   const [pasteLoading, setPasteLoading] = useState(false)
   const [pasteError, setPasteError] = useState<string | null>(null)
@@ -229,6 +233,28 @@ export function Search() {
     return result.slice(0, 6)
   })()
 
+  async function handleFetchUrl(e: React.FormEvent) {
+    e.preventDefault()
+    if (!pasteUrl.trim()) return
+    setPasteUrlError(null)
+    setPasteUrlLoading(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-fetch-job-url', {
+        body: { url: pasteUrl.trim() },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      if (data?.title) setPasteTitle(data.title)
+      if (data?.company) setPasteCompany(data.company)
+      if (data?.location) setPasteLocation(data.location)
+      if (data?.description) setPasteJD(data.description)
+    } catch (err) {
+      setPasteUrlError(err instanceof Error ? err.message : 'Could not fetch job details — try pasting the description manually.')
+    } finally {
+      setPasteUrlLoading(false)
+    }
+  }
+
   async function handlePaste(e: React.FormEvent) {
     e.preventDefault()
     setPasteError(null)
@@ -248,6 +274,8 @@ export function Search() {
           source: 'manual',
           title: pasteTitle,
           company: pasteCompany || null,
+          location: pasteLocation || null,
+          url: pasteUrl || null,
           description: pasteJD,
           tags: [],
           salary_currency: 'USD',
@@ -576,6 +604,30 @@ export function Search() {
 
       {tab === 'paste' && (
         <div className="paste-panel">
+          {/* URL fetch */}
+          <form className="url-fetch-form" onSubmit={handleFetchUrl}>
+            <div className="url-fetch-row">
+              <input
+                className="input-base url-input"
+                type="url"
+                placeholder="Paste job URL to auto-fill details…"
+                value={pasteUrl}
+                onChange={(e) => setPasteUrl(e.target.value)}
+                disabled={pasteUrlLoading}
+              />
+              <button
+                type="submit"
+                className="btn btn-ghost url-fetch-btn"
+                disabled={pasteUrlLoading || !pasteUrl.trim()}
+              >
+                {pasteUrlLoading ? 'Fetching…' : 'Fetch ✦'}
+              </button>
+            </div>
+            {pasteUrlError && <div className="search-error url-fetch-error">{pasteUrlError}</div>}
+          </form>
+
+          <div className="paste-divider"><span>or fill in manually</span></div>
+
           <form className="paste-form" onSubmit={handlePaste}>
             <div className="form-field">
               <label className="form-label">Job Title *</label>
@@ -587,14 +639,25 @@ export function Search() {
                 required
               />
             </div>
-            <div className="form-field">
-              <label className="form-label">Company</label>
-              <input
-                className="input-base"
-                value={pasteCompany}
-                onChange={(e) => setPasteCompany(e.target.value)}
-                placeholder="Optional"
-              />
+            <div className="paste-row-2">
+              <div className="form-field">
+                <label className="form-label">Company</label>
+                <input
+                  className="input-base"
+                  value={pasteCompany}
+                  onChange={(e) => setPasteCompany(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="form-field">
+                <label className="form-label">Location</label>
+                <input
+                  className="input-base"
+                  value={pasteLocation}
+                  onChange={(e) => setPasteLocation(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
             </div>
             <div className="form-field">
               <label className="form-label">Job Description *</label>
@@ -791,7 +854,21 @@ export function Search() {
         }
         .no-results { color: rgba(242,240,234,0.4); font-size: 13px; margin-top: 24px; }
         .paste-panel { max-width: 560px; }
+        .url-fetch-form { margin-bottom: 4px; }
+        .url-fetch-row { display: flex; gap: 8px; align-items: stretch; }
+        .url-input { flex: 1; }
+        .url-fetch-btn { white-space: nowrap; padding: 0 16px; }
+        .url-fetch-error { margin-top: 8px; }
+        .paste-divider {
+          display: flex; align-items: center; gap: 12px;
+          margin: 18px 0; color: rgba(242,240,234,0.25); font-size: 11px;
+        }
+        .paste-divider::before, .paste-divider::after {
+          content: ''; flex: 1; height: 1px; background: var(--color-border);
+        }
         .paste-form { display: flex; flex-direction: column; gap: 16px; }
+        .paste-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 480px) { .paste-row-2 { grid-template-columns: 1fr; } }
         .form-field { display: flex; flex-direction: column; gap: 6px; }
         .form-label {
           font-size: 11px; font-weight: 500; text-transform: uppercase;
