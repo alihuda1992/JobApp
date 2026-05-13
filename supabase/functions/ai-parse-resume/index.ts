@@ -11,9 +11,15 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
 async function callGemini(rawText: string): Promise<unknown> {
   const prompt = `You are a resume parser. Extract structured data from the resume below and return ONLY valid JSON with no explanation, no markdown, no code fences.
 
+Critical rules:
+- Include EVERY work experience entry present in the resume — do not skip, merge, or omit any role, even if dates overlap or the role seems minor.
+- Include EVERY education entry.
+- If a field is missing or unclear, use an empty string, not null (except end_date which may be null for current roles).
+- bullets: extract all bullet points or responsibilities listed for each role. If none are listed, use an empty array.
+
 Required JSON schema:
 {
-  "summary": "string",
+  "summary": "string (use existing summary/objective if present, otherwise synthesise one sentence from the experience)",
   "experience": [{"title":"string","company":"string","location":"string","start_date":"string","end_date":"string or null","bullets":["string"]}],
   "education": [{"degree":"string","institution":"string","field":"string","graduation_year":"string"}],
   "skills": ["string"],
