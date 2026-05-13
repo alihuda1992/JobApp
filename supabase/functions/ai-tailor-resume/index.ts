@@ -12,11 +12,12 @@ const SYSTEM_PROMPT = `You are a resume optimization expert. Tailor the provided
 
 Rules:
 1. NEVER change factual data: company names, job titles held, employment dates, institution names, degrees, graduation years.
-2. DO rewrite the summary to position the candidate specifically for this role.
-3. DO rephrase experience bullets to highlight the most relevant achievements and naturally incorporate keywords from the job description.
-4. DO reorder the skills array so the most relevant skills appear first.
-5. Keep certifications unchanged.
-6. Return the EXACT same JSON schema as the input resume — same fields, same structure.
+2. NEVER remove, merge, or reorder experience entries. The output experience array MUST contain EXACTLY the same number of entries in the EXACT same order as the input.
+3. DO rewrite the summary to position the candidate specifically for this role.
+4. DO rephrase bullet points within each experience entry to highlight relevant achievements and incorporate keywords from the job description. Keep the same number of bullets per entry.
+5. DO reorder the skills array so the most relevant skills appear first.
+6. Keep education and certifications unchanged.
+7. Return the EXACT same JSON schema as the input resume — same fields, same structure, same number of entries in every array.
 
 Return ONLY valid JSON. No markdown fences, no explanation, no preamble.`
 
@@ -48,6 +49,19 @@ serve(async (req) => {
     const raw = (json.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
     const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
     const tailored = JSON.parse(cleaned)
+
+    // Ensure no experience entries were dropped — merge back any missing ones
+    if (Array.isArray(resume_parsed.experience) && Array.isArray(tailored.experience)) {
+      if (tailored.experience.length < resume_parsed.experience.length) {
+        const merged = resume_parsed.experience.map((orig: Record<string, unknown>, i: number) => {
+          const ai = tailored.experience[i]
+          if (!ai) return orig
+          // Keep factual fields from original; take only bullets from AI
+          return { ...orig, bullets: Array.isArray(ai.bullets) ? ai.bullets : orig.bullets }
+        })
+        tailored.experience = merged
+      }
+    }
 
     return new Response(JSON.stringify({ tailored }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
