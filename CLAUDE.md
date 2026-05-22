@@ -35,7 +35,7 @@ supabase functions deploy <function-name>
 
 1. **Auth** → `useAuth` detects login → checks `profiles.onboarding_complete` → routes to `/onboarding` or `/`
 2. **Resume upload** → client extracts text (pdfjs/mammoth) → `ai-parse-resume` edge fn → stored in `resumes.parsed`
-3. **Job search** → Adzuna API called client-side → results held in Zustand → `ai-score-job` called lazily in batches of 3
+3. **Job search** → Adzuna + Remotive + Arbeitnow called client-side in parallel → results merged/deduped in Zustand → `ai-score-job` called lazily in batches of 3
 4. **Pipeline** → `applications` table with real-time Supabase subscription → Zustand store updated on INSERT/UPDATE/DELETE
 
 ## Database
@@ -44,18 +44,27 @@ Schema lives in `supabase/migrations/001_initial_schema.sql`. Tables: `profiles`
 
 ## Edge Functions
 
-| Function | Model | Temp | Purpose |
-|---|---|---|---|
-| `ai-parse-resume` | Haiku | 0 | Extract structured JSON from resume text |
-| `ai-score-job` | Haiku | 0 | Score resume vs JD (0–100 + breakdown) |
-| `ai-tailoring-suggestions` | Haiku | 0.3 | 2–5 gap suggestions between resume and JD |
-| `ai-generate-cover-letter` | Sonnet | 0.7 | Draft cover letter; saves to `generated_docs` |
-| `ai-rewrite-section` | Sonnet | 0.5 | Rewrite a resume section, optionally targeting a JD |
-| `ai-tailor-resume` | Gemini 2.5 Flash | 0.3 | Full resume tailored to a specific JD; returns modified ResumeJSON |
+All functions use **Gemini 2.5 Flash** except `notion-sync`.
+
+| Function | Temp | Purpose |
+|---|---|---|
+| `ai-parse-resume` | 0 | Extract structured JSON from resume text |
+| `ai-score-job` | 0 | Score resume vs JD (0–100 + breakdown) |
+| `ai-parse-search-intent` | 0 | Parse natural-language search into structured query params |
+| `ai-fetch-job-url` | 0 | Fetch & parse a job listing from a URL (SSRF-guarded: blocks private IPs & non-HTTP/S) |
+| `ai-tailoring-suggestions` | 0.3 | 2–5 gap suggestions between resume and JD |
+| `ai-tailor-resume` | 0.3 | Full resume tailored to a specific JD; returns modified ResumeJSON |
+| `ai-rewrite-section` | 0.5 | Rewrite a resume section, optionally targeting a JD |
+| `ai-generate-cover-letter` | 0.7 | Draft cover letter; saves to `generated_docs` |
+| `notion-sync` | — | Sync application data to Notion (no AI) |
+
+## Key Components
+
+- `src/components/auth/AuthLayout.tsx` — shared split-panel wrapper used by Login and Signup (dark form left, full-height image right, hides image on mobile ≤768px)
 
 ## Design System
 
-CSS custom properties in `src/styles/globals.css`. Key tokens:
+CSS custom properties in `src/index.css`. Key tokens:
 - Background: `#0e0f11`, Text: `#f2f0ea`
 - Accent (cobalt): `var(--color-accent)`, Secondary (amber): `var(--color-secondary)`
 - Match score: green ≥ 90, amber 70–89, gray < 70
