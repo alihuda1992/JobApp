@@ -35,7 +35,7 @@ supabase functions deploy <function-name>
 
 1. **Auth** → `useAuth` detects login → checks `profiles.onboarding_complete` → routes to `/onboarding` or `/`
 2. **Resume upload** → client extracts text (pdfjs/mammoth) → `ai-parse-resume` edge fn → stored in `resumes.parsed`
-3. **Job search** → Adzuna + Remotive + Arbeitnow called client-side in parallel → results merged/deduped in Zustand → `ai-score-job` called lazily in batches of 3
+3. **Job search** → Adzuna called client-side → results held in Zustand → `ai-score-job` called lazily in batches of 3
 4. **Pipeline** → `applications` table with real-time Supabase subscription → Zustand store updated on INSERT/UPDATE/DELETE
 
 ## Database

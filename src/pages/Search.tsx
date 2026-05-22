@@ -2,8 +2,6 @@ import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { searchJobs, adzunaConfigured, COUNTRIES, CATEGORIES } from '@/lib/adzuna'
-import { searchRemotive } from '@/lib/remotive'
-import { searchArbeitnow } from '@/lib/arbeitnow'
 import { useAppStore } from '@/store/useAppStore'
 import type { Job } from '@/types'
 
@@ -11,8 +9,6 @@ type Tab = 'search' | 'paste' | 'ai'
 
 const SOURCE_LABELS: Record<string, string> = {
   adzuna: 'Adzuna',
-  remotive: 'Remotive',
-  arbeitnow: 'Arbeitnow',
   manual: 'Manual',
 }
 
@@ -181,16 +177,12 @@ export function Search() {
     const effectiveLoc = loc ?? (location || undefined)
     const effectiveCat = cat !== undefined ? cat : (category || undefined)
 
-    const [adzunaResult, remotiveResult, arbeitnowResult] = await Promise.allSettled([
+    const [adzunaResult] = await Promise.allSettled([
       searchJobs({ query: q, location: effectiveLoc, salaryMin: salaryMin ? Number(salaryMin) : undefined, country, category: effectiveCat }),
-      searchRemotive(q),
-      searchArbeitnow(q),
     ])
 
     const all: Job[] = [
       ...(adzunaResult.status === 'fulfilled' ? adzunaResult.value : []),
-      ...(remotiveResult.status === 'fulfilled' ? remotiveResult.value : []),
-      ...(arbeitnowResult.status === 'fulfilled' ? arbeitnowResult.value : []),
     ]
 
     if (all.length === 0 && adzunaResult.status === 'rejected') {
