@@ -297,7 +297,14 @@ export function Search() {
         }
       }
 
-      if (job) navigate(`/jobs/${job.id}`)
+      if (job) {
+        await supabase.from('applications').insert({
+          user_id: user.id,
+          job_id: job.id,
+          status: 'saved',
+        })
+        navigate(`/jobs/${job.id}`)
+      }
     } catch (err) {
       setPasteError(err instanceof Error ? err.message : 'Failed to save job')
     } finally {
