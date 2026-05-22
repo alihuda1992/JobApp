@@ -189,7 +189,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             padding-bottom: calc(60px + env(safe-area-inset-bottom));
           }
         }
-      `})]})}function hc({children:e}){let{user:t,loading:n}=uc();return n?null:t?(0,K.jsx)(K.Fragment,{children:e}):(0,K.jsx)(Nt,{to:`/login`,replace:!0})}var gc=`https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1400&q=80`;function _c({children:e}){return(0,K.jsxs)(`div`,{className:`auth-shell`,children:[(0,K.jsx)(`div`,{className:`auth-left`,children:(0,K.jsxs)(`div`,{className:`auth-inner`,children:[(0,K.jsxs)(`div`,{className:`auth-brand`,children:[(0,K.jsx)(`div`,{className:`auth-logo`,children:(0,K.jsxs)(`svg`,{width:`20`,height:`20`,viewBox:`0 0 24 24`,fill:`none`,stroke:`currentColor`,strokeWidth:`2`,strokeLinecap:`round`,strokeLinejoin:`round`,children:[(0,K.jsx)(`rect`,{x:`2`,y:`7`,width:`20`,height:`14`,rx:`2`}),(0,K.jsx)(`path`,{d:`M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2`}),(0,K.jsx)(`line`,{x1:`12`,y1:`12`,x2:`12`,y2:`17`}),(0,K.jsx)(`line`,{x1:`9`,y1:`14.5`,x2:`15`,y2:`14.5`})]})}),(0,K.jsx)(`span`,{className:`auth-brand-name`,children:`The Job App`})]}),e]})}),(0,K.jsxs)(`div`,{className:`auth-right`,children:[(0,K.jsx)(`img`,{src:gc,alt:``,className:`auth-bg-img`}),(0,K.jsx)(`div`,{className:`auth-img-overlay`}),(0,K.jsxs)(`div`,{className:`auth-caption`,children:[(0,K.jsxs)(`div`,{className:`auth-caption-brand`,children:[(0,K.jsx)(`div`,{className:`auth-caption-logo`,children:(0,K.jsxs)(`svg`,{width:`18`,height:`18`,viewBox:`0 0 24 24`,fill:`none`,stroke:`currentColor`,strokeWidth:`2`,strokeLinecap:`round`,strokeLinejoin:`round`,children:[(0,K.jsx)(`rect`,{x:`2`,y:`7`,width:`20`,height:`14`,rx:`2`}),(0,K.jsx)(`path`,{d:`M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2`}),(0,K.jsx)(`line`,{x1:`12`,y1:`12`,x2:`12`,y2:`17`}),(0,K.jsx)(`line`,{x1:`9`,y1:`14.5`,x2:`15`,y2:`14.5`})]})}),(0,K.jsx)(`span`,{className:`auth-caption-brand-name`,children:`The Job App`})]}),(0,K.jsx)(`p`,{className:`auth-caption-heading`,children:`Land your next role.`}),(0,K.jsx)(`p`,{className:`auth-caption-sub`,children:`AI-powered search, scoring, and applications — all in one place.`})]})]}),(0,K.jsx)(`style`,{children:`
+      `})]})}function hc({children:e}){let{user:t,loading:n}=uc();return n?null:t?(0,K.jsx)(K.Fragment,{children:e}):(0,K.jsx)(Nt,{to:`/login`,replace:!0})}var gc=`https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1400&q=80`;function _c({children:e}){return(0,K.jsxs)(`div`,{className:`auth-shell`,children:[(0,K.jsx)(`div`,{className:`auth-left`,children:(0,K.jsxs)(`div`,{className:`auth-inner`,children:[(0,K.jsxs)(`div`,{className:`auth-brand`,children:[(0,K.jsx)(`div`,{className:`auth-logo`,children:(0,K.jsxs)(`svg`,{width:`20`,height:`20`,viewBox:`0 0 24 24`,fill:`none`,stroke:`currentColor`,strokeWidth:`2`,strokeLinecap:`round`,strokeLinejoin:`round`,children:[(0,K.jsx)(`rect`,{x:`2`,y:`7`,width:`20`,height:`14`,rx:`2`}),(0,K.jsx)(`path`,{d:`M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2`}),(0,K.jsx)(`line`,{x1:`12`,y1:`12`,x2:`12`,y2:`17`}),(0,K.jsx)(`line`,{x1:`9`,y1:`14.5`,x2:`15`,y2:`14.5`})]})}),(0,K.jsx)(`span`,{className:`auth-brand-name`,children:`The Job App`})]}),e]})}),(0,K.jsxs)(`div`,{className:`auth-right`,children:[(0,K.jsx)(`img`,{src:gc,alt:``,className:`auth-bg-img`}),(0,K.jsx)(`div`,{className:`auth-img-overlay`}),(0,K.jsxs)(`div`,{className:`auth-overlay-brand`,children:[(0,K.jsx)(`div`,{className:`auth-overlay-logo`,children:(0,K.jsxs)(`svg`,{width:`18`,height:`18`,viewBox:`0 0 24 24`,fill:`none`,stroke:`currentColor`,strokeWidth:`2`,strokeLinecap:`round`,strokeLinejoin:`round`,children:[(0,K.jsx)(`rect`,{x:`2`,y:`7`,width:`20`,height:`14`,rx:`2`}),(0,K.jsx)(`path`,{d:`M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2`}),(0,K.jsx)(`line`,{x1:`12`,y1:`12`,x2:`12`,y2:`17`}),(0,K.jsx)(`line`,{x1:`9`,y1:`14.5`,x2:`15`,y2:`14.5`})]})}),(0,K.jsx)(`span`,{className:`auth-overlay-brand-name`,children:`The Job App`})]}),(0,K.jsxs)(`div`,{className:`auth-caption`,children:[(0,K.jsx)(`p`,{className:`auth-caption-heading`,children:`Land your next role.`}),(0,K.jsx)(`p`,{className:`auth-caption-sub`,children:`AI-powered search, scoring, and applications — all in one place.`})]})]}),(0,K.jsx)(`style`,{children:`
         .auth-shell {
           display: flex;
           min-height: 100vh;
@@ -354,24 +354,18 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             rgba(0, 0, 0, 0.15) 100%
           );
         }
-        .auth-caption {
+        .auth-overlay-brand {
           position: absolute;
-          bottom: 52px;
-          left: 52px;
-          right: 52px;
-        }
-        .auth-caption-brand {
+          top: 44px;
+          left: 48px;
           display: flex;
           align-items: center;
-          gap: 9px;
-          margin-bottom: 32px;
+          gap: 10px;
         }
-        .auth-caption-logo {
-          width: 32px;
-          height: 32px;
-          background: rgba(255, 255, 255, 0.15);
-          backdrop-filter: blur(8px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+        .auth-overlay-logo {
+          width: 34px;
+          height: 34px;
+          background: var(--color-accent);
           border-radius: 8px;
           display: flex;
           align-items: center;
@@ -379,11 +373,17 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           color: #fff;
           flex-shrink: 0;
         }
-        .auth-caption-brand-name {
+        .auth-overlay-brand-name {
           font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 17px;
-          color: rgba(255, 255, 255, 0.9);
+          font-size: 18px;
+          color: #fff;
           letter-spacing: -0.2px;
+        }
+        .auth-caption {
+          position: absolute;
+          bottom: 52px;
+          left: 52px;
+          right: 52px;
         }
         .auth-caption-heading {
           font-family: 'Instrument Serif', Georgia, serif;
