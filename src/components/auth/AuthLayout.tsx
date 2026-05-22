@@ -34,7 +34,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         <div className="auth-img-overlay" />
         <div className="auth-overlay-brand">
           <div className="auth-overlay-logo">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="7" width="20" height="14" rx="2" />
               <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
               <line x1="12" y1="12" x2="12" y2="17" />
@@ -215,17 +215,17 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         }
         .auth-overlay-brand {
           position: absolute;
-          top: 44px;
-          left: 48px;
+          top: 48px;
+          left: 52px;
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
         }
         .auth-overlay-logo {
-          width: 34px;
-          height: 34px;
+          width: 48px;
+          height: 48px;
           background: var(--color-accent);
-          border-radius: 8px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -234,9 +234,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         }
         .auth-overlay-brand-name {
           font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 18px;
+          font-size: 26px;
           color: #fff;
-          letter-spacing: -0.2px;
+          letter-spacing: -0.3px;
         }
         .auth-caption {
           position: absolute;
