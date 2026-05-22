@@ -316,6 +316,8 @@ export function Pipeline() {
   }
 
   useEffect(() => {
+    let rafId: number | null = null
+
     function onTouchStart(e: TouchEvent) {
       const cardEl = (e.target as HTMLElement).closest('[data-card-id]') as HTMLElement | null
       if (!cardEl) return
@@ -342,20 +344,29 @@ export function Pipeline() {
         return
       }
       e.preventDefault()
-      document.querySelectorAll('.kanban-col-over').forEach(el => el.classList.remove('kanban-col-over'))
-      state.colOver = null
-      for (const el of document.elementsFromPoint(touch.clientX, touch.clientY)) {
-        const colEl = (el as HTMLElement).closest('[data-col]') as HTMLElement | null
-        if (colEl?.dataset.col) {
-          colEl.classList.add('kanban-col-over')
-          state.colOver = colEl.dataset.col as KanbanStatus
-          break
+      // Capture coords immediately — touch object is ephemeral
+      const x = touch.clientX
+      const y = touch.clientY
+      // Throttle elementsFromPoint to once per animation frame to avoid forced reflow on every touchmove
+      if (rafId !== null) return
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        document.querySelectorAll('.kanban-col-over').forEach(el => el.classList.remove('kanban-col-over'))
+        state.colOver = null
+        for (const el of document.elementsFromPoint(x, y)) {
+          const colEl = (el as HTMLElement).closest('[data-col]') as HTMLElement | null
+          if (colEl?.dataset.col) {
+            colEl.classList.add('kanban-col-over')
+            state.colOver = colEl.dataset.col as KanbanStatus
+            break
+          }
         }
-      }
+      })
     }
 
     function onTouchEnd() {
       if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+      if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null }
       const { cardId, active, colOver, cardEl } = touchRef.current
       cardEl?.classList.remove('app-card--lifting')
       document.querySelectorAll('.kanban-col-over').forEach(el => el.classList.remove('kanban-col-over'))
@@ -371,6 +382,7 @@ export function Pipeline() {
       document.removeEventListener('touchmove', onTouchMove)
       document.removeEventListener('touchend', onTouchEnd)
       if (longPressTimer.current) clearTimeout(longPressTimer.current)
+      if (rafId !== null) cancelAnimationFrame(rafId)
     }
   }, [])
 
