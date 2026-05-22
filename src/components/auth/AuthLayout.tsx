@@ -33,6 +33,17 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         <img src={IMAGE_URL} alt="" className="auth-bg-img" />
         <div className="auth-img-overlay" />
         <div className="auth-caption">
+          <div className="auth-caption-brand">
+            <div className="auth-caption-logo">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" />
+                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+                <line x1="12" y1="12" x2="12" y2="17" />
+                <line x1="9" y1="14.5" x2="15" y2="14.5" />
+              </svg>
+            </div>
+            <span className="auth-caption-brand-name">The Job App</span>
+          </div>
           <p className="auth-caption-heading">Land your next role.</p>
           <p className="auth-caption-sub">
             AI-powered search, scoring, and applications — all in one place.
@@ -61,7 +72,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           max-width: 400px;
         }
         .auth-brand {
-          display: flex;
+          display: none;
           align-items: center;
           gap: 10px;
           margin-bottom: 52px;
@@ -211,6 +222,31 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           left: 52px;
           right: 52px;
         }
+        .auth-caption-brand {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          margin-bottom: 32px;
+        }
+        .auth-caption-logo {
+          width: 32px;
+          height: 32px;
+          background: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          flex-shrink: 0;
+        }
+        .auth-caption-brand-name {
+          font-family: 'Instrument Serif', Georgia, serif;
+          font-size: 17px;
+          color: rgba(255, 255, 255, 0.9);
+          letter-spacing: -0.2px;
+        }
         .auth-caption-heading {
           font-family: 'Instrument Serif', Georgia, serif;
           font-size: 36px;
@@ -233,6 +269,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             flex: 1;
             padding: 40px 28px;
           }
+          .auth-brand { display: flex; }
           .auth-right { display: none; }
         }
       `}</style>
