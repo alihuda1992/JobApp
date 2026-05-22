@@ -209,12 +209,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         .auth-img-overlay {
           position: absolute;
           inset: 0;
-          background: linear-gradient(
-            to top,
-            rgba(0, 0, 0, 0.82) 0%,
-            rgba(0, 0, 0, 0.35) 45%,
-            rgba(0, 0, 0, 0.15) 100%
-          );
+          background:
+            linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 28%),
+            linear-gradient(to top,    rgba(0,0,0,0.80) 0%, rgba(0,0,0,0) 45%);
         }
         .auth-overlay-brand {
           position: absolute;
