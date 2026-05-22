@@ -197,23 +197,23 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         /* ── Left ── */
         .auth-left {
-          flex: 0 0 460px;
+          flex: 0 0 520px;
           display: flex;
           align-items: center;
           justify-content: center;
           background: var(--color-bg);
-          padding: 48px 40px;
+          padding: 64px 56px;
           overflow-y: auto;
         }
         .auth-inner {
           width: 100%;
-          max-width: 360px;
+          max-width: 400px;
         }
         .auth-brand {
           display: flex;
           align-items: center;
           gap: 10px;
-          margin-bottom: 36px;
+          margin-bottom: 52px;
         }
         .auth-logo {
           width: 36px;
@@ -235,16 +235,16 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         /* ── Form elements (shared by Login & Signup) ── */
         .auth-title {
-          font-size: 24px;
+          font-size: 26px;
           font-weight: 600;
-          margin-bottom: 6px;
+          margin-bottom: 8px;
           color: var(--color-text);
           line-height: 1.2;
         }
         .auth-subtitle {
           color: rgba(242, 240, 234, 0.45);
-          font-size: 13px;
-          margin-bottom: 28px;
+          font-size: 14px;
+          margin-bottom: 36px;
         }
         .oauth-group {
           display: flex;
@@ -257,7 +257,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           align-items: center;
           justify-content: center;
           gap: 10px;
-          padding: 10px 16px;
+          padding: 11px 16px;
           background: rgba(255,255,255,0.05);
           border: 1px solid var(--color-border);
           border-radius: var(--radius-btn);
@@ -275,7 +275,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           display: flex;
           align-items: center;
           gap: 12px;
-          margin: 20px 0;
+          margin: 28px 0;
           color: rgba(242,240,234,0.3);
           font-size: 12px;
         }
@@ -289,7 +289,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         .auth-form {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 18px;
         }
         .form-field {
           display: flex;
@@ -319,7 +319,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
         .auth-switch {
           text-align: center;
-          margin-top: 22px;
+          margin-top: 28px;
           font-size: 13px;
           color: rgba(242, 240, 234, 0.45);
         }
@@ -377,10 +377,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
 
         /* ── Responsive: hide right panel on small screens ── */
-        @media (max-width: 768px) {
+        @media (max-width: 860px) {
           .auth-left {
             flex: 1;
-            padding: 32px 24px;
+            padding: 40px 28px;
           }
           .auth-right { display: none; }
         }
