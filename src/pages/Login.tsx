@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { AuthLayout } from '@/components/auth/AuthLayout'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -56,177 +57,74 @@ export function Login() {
   }
 
   return (
-    <div className="auth-page">
-      <div className="auth-card card">
-        <h1 className="auth-title">Welcome back</h1>
-        <p className="auth-subtitle">Sign in to your account</p>
+    <AuthLayout>
+      <h1 className="auth-title">Welcome back</h1>
+      <p className="auth-subtitle">Sign in to your account</p>
 
-        <div className="oauth-group">
-          <button
-            type="button"
-            className="btn btn-oauth"
-            onClick={() => handleOAuth('google')}
-            disabled={!!oauthLoading}
-          >
-            <GoogleIcon />
-            {oauthLoading === 'google' ? 'Redirecting…' : 'Continue with Google'}
-          </button>
-          <button
-            type="button"
-            className="btn btn-oauth"
-            onClick={() => handleOAuth('github')}
-            disabled={!!oauthLoading}
-          >
-            <GitHubIcon />
-            {oauthLoading === 'github' ? 'Redirecting…' : 'Continue with GitHub'}
-          </button>
-        </div>
-
-        <div className="auth-divider"><span>or</span></div>
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-field">
-            <label className="form-label" htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              className="input-base"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="form-field">
-            <label className="form-label" htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              className="input-base"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              autoComplete="current-password"
-            />
-          </div>
-
-          {error && <div className="auth-error">{error}</div>}
-
-          <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign in'}
-          </button>
-        </form>
-
-        <p className="auth-switch">
-          No account?{' '}
-          <Link to="/signup">Create one</Link>
-        </p>
+      <div className="oauth-group">
+        <button
+          type="button"
+          className="btn btn-oauth"
+          onClick={() => handleOAuth('google')}
+          disabled={!!oauthLoading}
+        >
+          <GoogleIcon />
+          {oauthLoading === 'google' ? 'Redirecting…' : 'Continue with Google'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-oauth"
+          onClick={() => handleOAuth('github')}
+          disabled={!!oauthLoading}
+        >
+          <GitHubIcon />
+          {oauthLoading === 'github' ? 'Redirecting…' : 'Continue with GitHub'}
+        </button>
       </div>
 
-      <style>{`
-        .auth-page {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 24px;
-          background: var(--color-bg);
-        }
-        .auth-card {
-          width: 100%;
-          max-width: 400px;
-          padding: 36px;
-        }
-        .auth-title {
-          font-size: 26px;
-          margin-bottom: 6px;
-        }
-        .auth-subtitle {
-          color: rgba(242, 240, 234, 0.5);
-          font-size: 13px;
-          margin-bottom: 24px;
-        }
-        .oauth-group {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .btn-oauth {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          padding: 10px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-btn);
-          color: var(--color-text);
-          font-size: 14px;
-          cursor: pointer;
-          transition: background 0.15s, border-color 0.15s;
-        }
-        .btn-oauth:hover:not(:disabled) {
-          background: rgba(255,255,255,0.09);
-          border-color: var(--color-border-hover);
-        }
-        .btn-oauth:disabled { opacity: 0.5; cursor: not-allowed; }
-        .auth-divider {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin: 20px 0;
-          color: rgba(242,240,234,0.3);
-          font-size: 12px;
-        }
-        .auth-divider::before,
-        .auth-divider::after {
-          content: '';
-          flex: 1;
-          height: 1px;
-          background: var(--color-border);
-        }
-        .auth-form {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .form-field {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .form-label {
-          font-size: 12px;
-          font-weight: 500;
-          color: rgba(242, 240, 234, 0.65);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-        .auth-error {
-          background: rgba(220, 50, 50, 0.12);
-          border: 1px solid rgba(220, 50, 50, 0.3);
-          border-radius: var(--radius-btn);
-          color: #f87171;
-          font-size: 12px;
-          padding: 8px 12px;
-        }
-        .auth-submit {
-          width: 100%;
-          margin-top: 4px;
-          padding: 10px;
-        }
-        .auth-switch {
-          text-align: center;
-          margin-top: 20px;
-          font-size: 13px;
-          color: rgba(242, 240, 234, 0.5);
-        }
-      `}</style>
-    </div>
+      <div className="auth-divider"><span>or</span></div>
+
+      <form onSubmit={handleSubmit} className="auth-form">
+        <div className="form-field">
+          <label className="form-label" htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            className="input-base"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+            autoComplete="email"
+          />
+        </div>
+
+        <div className="form-field">
+          <label className="form-label" htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            className="input-base"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+            autoComplete="current-password"
+          />
+        </div>
+
+        {error && <div className="auth-error">{error}</div>}
+
+        <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+          {loading ? 'Signing in…' : 'Sign in'}
+        </button>
+      </form>
+
+      <p className="auth-switch">
+        No account?{' '}
+        <Link to="/signup">Create one</Link>
+      </p>
+    </AuthLayout>
   )
 }
 
