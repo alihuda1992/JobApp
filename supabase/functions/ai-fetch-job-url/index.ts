@@ -54,6 +54,23 @@ serve(async (req) => {
       })
     }
 
+    // Block private/internal IPs and non-HTTP(S) schemes to prevent SSRF
+    try {
+      const parsed = new URL(url)
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Only http and https URLs are allowed')
+      }
+      const host = parsed.hostname.toLowerCase()
+      const privateRange = /^(localhost|.*\.local|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.|169\.254\.|::1|fc00:|fd)/.test(host)
+      if (privateRange) {
+        throw new Error('URL resolves to a private or internal address')
+      }
+    } catch (err) {
+      return new Response(JSON.stringify({ error: String(err) }), {
+        status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     let html: string
     try {
       const pageRes = await fetch(url, {
