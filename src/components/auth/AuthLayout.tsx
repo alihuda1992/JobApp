@@ -32,18 +32,18 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       <div className="auth-right">
         <img src={IMAGE_URL} alt="" className="auth-bg-img" />
         <div className="auth-img-overlay" />
-        <div className="auth-caption">
-          <div className="auth-caption-brand">
-            <div className="auth-caption-logo">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="7" width="20" height="14" rx="2" />
-                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-                <line x1="12" y1="12" x2="12" y2="17" />
-                <line x1="9" y1="14.5" x2="15" y2="14.5" />
-              </svg>
-            </div>
-            <span className="auth-caption-brand-name">The Job App</span>
+        <div className="auth-overlay-brand">
+          <div className="auth-overlay-logo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2" />
+              <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+              <line x1="12" y1="12" x2="12" y2="17" />
+              <line x1="9" y1="14.5" x2="15" y2="14.5" />
+            </svg>
           </div>
+          <span className="auth-overlay-brand-name">The Job App</span>
+        </div>
+        <div className="auth-caption">
           <p className="auth-caption-heading">Land your next role.</p>
           <p className="auth-caption-sub">
             AI-powered search, scoring, and applications — all in one place.
@@ -216,24 +216,18 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             rgba(0, 0, 0, 0.15) 100%
           );
         }
-        .auth-caption {
+        .auth-overlay-brand {
           position: absolute;
-          bottom: 52px;
-          left: 52px;
-          right: 52px;
-        }
-        .auth-caption-brand {
+          top: 44px;
+          left: 48px;
           display: flex;
           align-items: center;
-          gap: 9px;
-          margin-bottom: 32px;
+          gap: 10px;
         }
-        .auth-caption-logo {
-          width: 32px;
-          height: 32px;
-          background: rgba(255, 255, 255, 0.15);
-          backdrop-filter: blur(8px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+        .auth-overlay-logo {
+          width: 34px;
+          height: 34px;
+          background: var(--color-accent);
           border-radius: 8px;
           display: flex;
           align-items: center;
@@ -241,11 +235,17 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           color: #fff;
           flex-shrink: 0;
         }
-        .auth-caption-brand-name {
+        .auth-overlay-brand-name {
           font-family: 'Instrument Serif', Georgia, serif;
-          font-size: 17px;
-          color: rgba(255, 255, 255, 0.9);
+          font-size: 18px;
+          color: #fff;
           letter-spacing: -0.2px;
+        }
+        .auth-caption {
+          position: absolute;
+          bottom: 52px;
+          left: 52px;
+          right: 52px;
         }
         .auth-caption-heading {
           font-family: 'Instrument Serif', Georgia, serif;
