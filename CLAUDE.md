@@ -21,6 +21,11 @@ supabase functions deploy <function-name>
 # GEMINI_API_KEY is the only secret needed — already set on the project
 ```
 
+Build the MCP server (after changing `mcp-server/src/`):
+```bash
+cd mcp-server && npm run build
+```
+
 ## Architecture
 
 **Frontend**: React 19 + Vite + TypeScript, deployed to GitHub Pages at `https://alihuda1992.github.io/JobApp/`. App display name is "The Job App". Vite base is `/JobApp/`. SPA routing uses the `public/404.html` sessionStorage redirect trick.
@@ -30,6 +35,10 @@ supabase functions deploy <function-name>
 **AI**: All AI calls go through Edge Functions (key never in client). All functions use **Gemini 2.5 Flash** via the Gemini API (`GEMINI_API_KEY` secret on Supabase).
 
 **State**: Zustand store in `src/store/useAppStore.ts` holds `{ profile, applications, jobs }`. Auth state lives in `useAuth` hook (`src/hooks/useAuth.ts`).
+
+**MCP server**: `mcp-server/` is a local stdio MCP server (TypeScript, `@modelcontextprotocol/sdk`) that lets Claude Code / Claude Desktop read and write the app's data directly through Supabase. It signs in with user credentials from `mcp-server/.env` (gitignored — copy `.env.example`), so RLS applies normally. Auto-registered for Claude Code via `.mcp.json` at the repo root. 14 tools: reads (`get_pipeline`, `list_jobs`, `get_job`, `get_active_resume`), writes (`add_job`, `create_application`, `update_application`, `delete_application`), free saves where Claude does the AI work in-session (`save_job_score`, `save_cover_letter`), and Gemini-backed edge-function wrappers (`score_job`, `get_tailoring_suggestions`, `tailor_resume`, `generate_cover_letter`). Because the app subscribes to Supabase Realtime, MCP writes appear in the open app instantly. See `mcp-server/README.md` and `ARCHITECTURE.md`.
+
+**Keep-alive**: `.github/workflows/keep-alive.yml` pings the database every 3 days (prevents Supabase free-tier auto-pause) and pushes an empty heartbeat commit if the repo has had no commits for 45+ days (prevents GitHub's 60-day scheduled-workflow suspension). Failures email the repo owner.
 
 ## Key Data Flow
 

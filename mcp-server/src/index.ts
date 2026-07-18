@@ -88,7 +88,11 @@ server.registerTool(
       .select("id, title, company, location, source, salary_min, salary_max, match_score, url, posted_at, created_at")
       .order("created_at", { ascending: false })
       .limit(limit ?? 25);
-    if (query) q = q.or(`title.ilike.%${query}%,company.ilike.%${query}%`);
+    if (query) {
+      // Strip PostgREST filter metacharacters so the term can't alter the filter syntax
+      const safe = query.replace(/[,()]/g, " ").trim();
+      if (safe) q = q.or(`title.ilike.%${safe}%,company.ilike.%${safe}%`);
+    }
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     return ok(data);
