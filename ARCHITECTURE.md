@@ -1,86 +1,12 @@
-# How It All Works — The Job App + Claude
+# Architecture
 
-*A business-friendly walkthrough of the architecture, written to be spoken aloud.*
+The Job App is an AI-powered job search and application tracker with a conversational control surface: in addition to the web UI, the application can be read and updated by an AI assistant (Claude) over the [Model Context Protocol](https://modelcontextprotocol.io), with changes appearing live in the browser.
 
-## The one-sentence version
-
-I built a job-search web app, then connected Claude to it as an AI assistant that can read and update the app through natural conversation — so I can say *"I just applied to the Actionist role, move it on my board and draft a cover letter for the next one"* and watch it happen live on screen.
-
-## The three layers
-
-### 1. The app people see
-
-A single-page web application (React + TypeScript) hosted for free on GitHub Pages. Users search live job listings, upload a resume, get an AI match score for every job (0–100, with a breakdown across skills, experience, keywords, seniority, and industry), and manage applications on a drag-and-drop kanban board — *Saved → Applied → Interviewing → Offer*.
-
-### 2. The backend that does the work
-
-Supabase — a managed backend platform — provides four services from one project:
-
-- **Database** (Postgres) holding profiles, resumes, jobs, applications, and generated documents. Every table enforces *row-level security*: the database itself guarantees users can only ever touch their own rows, no matter what code is calling it. Security lives at the data layer, not sprinkled through app code.
-- **Auth** — email/password accounts; every request carries a signed token identifying the user.
-- **Realtime** — the app holds an open subscription to the database. When a row changes, the UI updates within a second, *no matter who or what changed it*. This one feature is what makes the Claude integration feel magical later.
-- **Edge Functions** — small server-side programs that call the Gemini AI model for resume parsing, job scoring, and cover-letter drafting. The AI key lives only on the server; the browser never sees it.
-
-### 3. The Claude integration (the part I'm proudest of)
-
-**MCP — the Model Context Protocol — is an open standard for handing an AI assistant a set of typed, permission-scoped tools.** Think of it as writing a job description for an AI: here are the fourteen actions you may take, here's what each one needs, here's what it returns.
-
-I wrote an MCP server (~400 lines of TypeScript) that gives Claude tools in three tiers:
-
-| Tier | Examples | What it means |
-|---|---|---|
-| **Read** | `get_pipeline`, `get_active_resume` | Claude can see my board, saved jobs, and parsed resume |
-| **Write** | `add_job`, `update_application` | Claude can add jobs and move cards through pipeline stages |
-| **AI** | `save_job_score`, `save_cover_letter` | Claude scores jobs and writes cover letters itself, then saves the results into the app |
-
-The server signs into Supabase with my own account credentials — so Claude operates under exactly the same row-level security rules as I do in the browser. It cannot see or touch anyone else's data, by construction.
-
-## What a conversation actually looks like
-
-```mermaid
-sequenceDiagram
-    participant Me
-    participant Claude as Claude (Desktop/Code)
-    participant MCP as MCP Server (local)
-    participant DB as Supabase (DB + Auth)
-    participant App as Web App (open in browser)
-
-    Me->>Claude: "Score the CAI job against my resume"
-    Claude->>MCP: get_active_resume
-    MCP->>DB: authenticated query
-    DB-->>Claude: parsed resume JSON
-    Claude->>MCP: get_job (CAI)
-    DB-->>Claude: job description
-    Note over Claude: Claude reasons over both<br/>and computes the score itself
-    Claude->>MCP: save_job_score (87, breakdown)
-    MCP->>DB: update jobs row
-    DB-->>App: Realtime push
-    Note over App: Score appears on the<br/>kanban board within ~1s
-    Claude-->>Me: "Scored 87 — strong on skills, lighter on industry"
-```
-
-The punchline for a demo: **the browser is open next to the chat, and the board updates by itself as Claude works.** No refresh, no integration glue in the frontend — the app can't even tell whether a human or Claude made the change, because both go through the same authenticated, security-checked path.
-
-## Three design decisions worth talking about
-
-**1. The AI cost inversion.** The app's built-in AI buttons call Gemini, which I pay for per-use. But when Claude drives the app, Claude *is* the AI — so instead of having tools that call a second AI, I gave Claude "save" tools and let it do the scoring and writing itself, in-session, covered by my existing Claude subscription. Same results land in the same database tables; marginal AI cost of the agentic workflow: zero. The Gemini path still exists for the app's own UI, where a subscription can't reach.
-
-**2. Security by placement, not by policing.** Row-level security in the database means every actor — browser, Claude, future integrations — inherits the same guarantees automatically. The AI integration required *zero* new security code, because there was no privileged path to secure. The MCP server holds no elevated keys; it's just another logged-in user.
-
-**3. Reliability automation for a zero-budget stack.** Free tiers idle out: Supabase pauses projects after a week of inactivity, and GitHub suspends scheduled jobs after 60 days without commits. A single scheduled GitHub Action solves both — it queries the database every three days (keeping Supabase awake) and, if the repo has been quiet for 45 days, pushes an empty heartbeat commit (keeping its own schedule alive). It's self-sustaining and emails me only when something actually breaks.
-
-## What this demonstrates (the interview framing)
-
-- **Working with AI as a builder, not just a user** — I used Claude Code to design and build the integration, and the artifact itself is infrastructure *for* AI: a tool interface that any MCP-compatible assistant can drive.
-- **Systems thinking** — the interesting part isn't any single component; it's that Realtime + row-level security + MCP compose into "AI updates my app live, safely" with almost no new code.
-- **Cost/benefit judgment** — recognizing that the agentic path made a second AI redundant, and restructuring the tools to exploit that.
-- **Operational maturity** — secrets kept out of source control, dependency vulnerabilities scanned and patched, input sanitization on query filters, and failure paths that notify rather than fail silently.
-
-## The full picture
+## System overview
 
 ```mermaid
 flowchart LR
-    subgraph My Mac
+    subgraph Local machine
         CD[Claude Desktop / Claude Code]
         MCP[MCP Server<br/>14 tools, TypeScript]
         CD <-->|Model Context Protocol| MCP
@@ -94,11 +20,11 @@ flowchart LR
     end
 
     subgraph GitHub
-        GHP[GitHub Pages<br/>hosts the app]
+        GHP[GitHub Pages<br/>static hosting]
         GHA[Actions: deploy +<br/>keep-alive cron]
     end
 
-    BR[Browser: The Job App] 
+    BR[Browser: The Job App]
 
     MCP -->|user JWT| AUTH
     MCP --> PG
@@ -107,5 +33,79 @@ flowchart LR
     BR --> PG
     BR --> EF
     GHP --> BR
-    GHA -->|ping every 3 days| PG
+    GHA -->|scheduled ping| PG
+```
+
+## Layers
+
+### Frontend
+
+A React 19 + TypeScript single-page application built with Vite and hosted on GitHub Pages. Users search live job listings (Adzuna), upload a resume, receive an AI match score per job (0–100 with a skills/experience/keywords/seniority/industry breakdown), and manage applications on a drag-and-drop kanban pipeline (*Saved → Applied → Interviewing → Offer*). Client state is held in a Zustand store.
+
+### Backend
+
+A single Supabase project provides four services:
+
+- **Postgres with row-level security.** Tables: `profiles`, `resumes`, `jobs`, `applications`, `generated_docs`. RLS policies on every table restrict access to the row owner, so tenancy is enforced at the data layer rather than in application code.
+- **Auth.** Email/password accounts; every request carries a signed JWT identifying the user.
+- **Realtime.** The frontend holds an open subscription to the `applications` table. Any committed change — regardless of which client made it — is pushed to the UI within about a second.
+- **Edge Functions** (Deno/TypeScript). Server-side functions call Gemini 2.5 Flash for resume parsing, job scoring, tailoring suggestions, and cover-letter generation. The Gemini API key exists only as a server-side secret; the browser never sees it.
+
+### MCP server
+
+`mcp-server/` is a local stdio MCP server (~400 lines of TypeScript on `@modelcontextprotocol/sdk`) exposing fourteen typed tools in three tiers:
+
+| Tier | Tools | Purpose |
+|---|---|---|
+| Read | `get_pipeline`, `list_jobs`, `get_job`, `get_active_resume` | Inspect the pipeline, saved jobs, and parsed resume |
+| Write | `add_job`, `create_application`, `update_application`, `delete_application` | Add jobs and manage kanban stages, notes, next steps |
+| AI-save | `save_job_score`, `save_cover_letter` | Persist scoring/writing the assistant performed in-session |
+| AI-delegate | `score_job`, `get_tailoring_suggestions`, `tailor_resume`, `generate_cover_letter` | Invoke the app's Gemini edge functions |
+
+The server authenticates by signing into Supabase Auth as a regular user (credentials in a gitignored `.env`) and holds no elevated keys. Every query and edge-function call carries the resulting user JWT, so row-level security applies to the AI exactly as it does to the browser.
+
+## A request end to end
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as Claude (Desktop/Code)
+    participant M as MCP Server
+    participant S as Supabase
+    participant B as Browser (app open)
+
+    U->>C: "Score this job against my resume"
+    C->>M: get_active_resume
+    M->>S: authenticated query
+    S-->>C: parsed resume JSON
+    C->>M: get_job
+    S-->>C: job description
+    Note over C: Assistant computes the score<br/>from both documents in-session
+    C->>M: save_job_score (score + breakdown)
+    M->>S: update jobs row
+    S-->>B: Realtime push — UI updates
+    C-->>U: score and rationale
+```
+
+Because both the browser and the MCP server write through the same authenticated path, the application requires no special handling for AI-originated changes — the Realtime subscription simply reflects whatever was committed.
+
+## Design notes
+
+**Two AI paths with different cost profiles.** The web UI's AI features call Gemini via edge functions (metered API usage). The MCP integration instead exposes *save* tools, letting the connected assistant perform scoring and drafting itself and persist the results — the same data lands in the same tables with no additional AI API cost. The edge-function wrappers remain available to MCP clients for parity with in-app behavior.
+
+**Security at the data layer.** Because RLS policies are enforced by Postgres itself, adding a new client class (the MCP server) required no new authorization code. The anon key shipped in the frontend bundle is an identifier, not a secret; data protection derives from JWT-scoped RLS. The MCP server additionally sanitizes filter metacharacters in search inputs as defense in depth.
+
+**Free-tier reliability automation.** Two idle-out policies affect a zero-cost stack: Supabase pauses inactive free projects, and GitHub disables scheduled workflows in repos with no recent commits. A single scheduled workflow (`.github/workflows/keep-alive.yml`) addresses both — it queries the database every three days, and if the repository has had no commits for 45+ days it pushes an empty heartbeat commit, resetting GitHub's inactivity clock. Failures surface as workflow-failure notifications rather than silent pauses.
+
+## Repository layout
+
+```
+src/                  React frontend (pages, components, Zustand store, hooks)
+supabase/
+  migrations/         SQL schema (tables + RLS policies)
+  functions/          Deno edge functions (Gemini-backed AI + Notion sync)
+mcp-server/           MCP server (TypeScript, stdio transport)
+.github/workflows/    Pages deploy + keep-alive cron
+.mcp.json             Auto-registers the MCP server for Claude Code
+CLAUDE.md             Context file for AI-assisted development
 ```
