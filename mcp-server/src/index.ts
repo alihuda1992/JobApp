@@ -1,7 +1,10 @@
 #!/usr/bin/env node
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { repoRoot } from "./env.js";
 import { callEdgeFunction, getClient, getUserId } from "./supabase.js";
 
 const APPLICATION_STATUSES = ["saved", "applied", "interviewing", "offer", "closed", "rejected"] as const;
@@ -308,6 +311,109 @@ server.registerTool(
       .single();
     if (error) throw new Error(error.message);
     return ok(data);
+  })
+);
+
+// ---------- Local file tools (tailored-resumes/ folder) ----------
+
+const tailoredDir = process.env.TAILORED_RESUMES_DIR ?? join(repoRoot, "tailored-resumes");
+
+// Matches the tailor-resume skill's naming convention: clean identifiers, underscores, no spaces
+function cleanIdentifier(s: string): string {
+  return s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+server.registerTool(
+  "save_tailored_resume",
+  {
+    title: "Save tailored resume file locally",
+    description:
+      "Park a tailored resume built in-session (e.g. by the tailor-resume skill) into the local tailored-resumes/ " +
+      "folder next to the app, named Huda_Aliraza_<Company>_<Role>.<ext>. Pass the file content base64-encoded " +
+      "(docx and/or pdf — at least one). If job_id is given, a note with the filename is appended to that job's " +
+      "pipeline application so the board records which resume version was used.",
+    inputSchema: {
+      company: z.string().min(1),
+      role: z.string().min(1),
+      docx_base64: z.string().optional().describe("Base64-encoded .docx file content"),
+      pdf_base64: z.string().optional().describe("Base64-encoded .pdf file content"),
+      job_id: z.string().uuid().optional().describe("Saved job to link this resume to on the pipeline"),
+    },
+  },
+  wrap(async ({ company, role, docx_base64, pdf_base64, job_id }) => {
+    const files: { ext: string; buf: Buffer }[] = [];
+    if (docx_base64) {
+      const buf = Buffer.from(docx_base64, "base64");
+      if (buf.subarray(0, 2).toString("latin1") !== "PK") {
+        throw new Error("docx_base64 does not decode to a .docx file (missing zip header) — re-encode and retry.");
+      }
+      files.push({ ext: "docx", buf });
+    }
+    if (pdf_base64) {
+      const buf = Buffer.from(pdf_base64, "base64");
+      if (buf.subarray(0, 4).toString("latin1") !== "%PDF") {
+        throw new Error("pdf_base64 does not decode to a .pdf file (missing %PDF header) — re-encode and retry.");
+      }
+      files.push({ ext: "pdf", buf });
+    }
+    if (!files.length) throw new Error("Provide docx_base64 and/or pdf_base64.");
+
+    mkdirSync(tailoredDir, { recursive: true });
+    const base = `Huda_Aliraza_${cleanIdentifier(company)}_${cleanIdentifier(role)}`;
+    // Bump a shared suffix until no provided format collides, so docx+pdf stay paired
+    let name = base;
+    for (let n = 2; files.some(f => existsSync(join(tailoredDir, `${name}.${f.ext}`))); n++) {
+      name = `${base}_${n}`;
+    }
+    const saved = files.map(f => {
+      const path = join(tailoredDir, `${name}.${f.ext}`);
+      writeFileSync(path, f.buf);
+      return path;
+    });
+
+    let application: unknown = null;
+    if (job_id) {
+      const supa = await getClient();
+      const { data: apps } = await supa
+        .from("applications")
+        .select("id, notes")
+        .eq("job_id", job_id)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      if (apps?.length) {
+        const line = `Tailored resume: ${name} (${new Date().toISOString().slice(0, 10)})`;
+        const notes = apps[0].notes ? `${apps[0].notes}\n${line}` : line;
+        const { data, error } = await supa
+          .from("applications")
+          .update({ notes })
+          .eq("id", apps[0].id)
+          .select("id, notes")
+          .single();
+        if (error) throw new Error(`Files saved, but updating the application note failed: ${error.message}`);
+        application = data;
+      }
+    }
+    return ok({ saved, application: application ?? (job_id ? "no application found for that job" : undefined) });
+  })
+);
+
+server.registerTool(
+  "list_tailored_resumes",
+  {
+    title: "List tailored resume files",
+    description: "List resume files parked in the local tailored-resumes/ folder, newest first.",
+    inputSchema: {},
+  },
+  wrap(async () => {
+    if (!existsSync(tailoredDir)) return ok([]);
+    const entries = readdirSync(tailoredDir)
+      .filter(f => /\.(docx|pdf)$/i.test(f))
+      .map(f => {
+        const s = statSync(join(tailoredDir, f));
+        return { file: f, path: join(tailoredDir, f), modified: s.mtime.toISOString(), size_kb: Math.round(s.size / 1024) };
+      })
+      .sort((a, b) => b.modified.localeCompare(a.modified));
+    return ok(entries);
   })
 );
 

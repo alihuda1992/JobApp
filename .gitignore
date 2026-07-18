@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+
+# Tailored resume files — personal data, local only
+tailored-resumes/*
+!tailored-resumes/README.md
 .env
 .env.local
 .env.*.local

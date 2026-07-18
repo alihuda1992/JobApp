@@ -53,14 +53,17 @@ A single Supabase project provides four services:
 
 ### MCP server
 
-`mcp-server/` is a local stdio MCP server (~400 lines of TypeScript on `@modelcontextprotocol/sdk`) exposing fourteen typed tools in three tiers:
+`mcp-server/` is a local stdio MCP server (~500 lines of TypeScript on `@modelcontextprotocol/sdk`) exposing sixteen typed tools in five tiers:
 
 | Tier | Tools | Purpose |
 |---|---|---|
 | Read | `get_pipeline`, `list_jobs`, `get_job`, `get_active_resume` | Inspect the pipeline, saved jobs, and parsed resume |
 | Write | `add_job`, `create_application`, `update_application`, `delete_application` | Add jobs and manage kanban stages, notes, next steps |
 | AI-save | `save_job_score`, `save_cover_letter` | Persist scoring/writing the assistant performed in-session |
+| Local files | `save_tailored_resume`, `list_tailored_resumes` | Park resume documents in a local (gitignored) folder |
 | AI-delegate | `score_job`, `get_tailoring_suggestions`, `tailor_resume`, `generate_cover_letter` | Invoke the app's Gemini edge functions |
+
+The local-file tier doubles as a bridge for sandboxed assistant environments: a cloud-side skill can build a document in its sandbox and pass it (base64) through `save_tailored_resume`, landing the file on the user's machine and stamping a note on the matching pipeline application in the same call.
 
 The server authenticates by signing into Supabase Auth as a regular user (credentials in a gitignored `.env`) and holds no elevated keys. Every query and edge-function call carries the resulting user JWT, so row-level security applies to the AI exactly as it does to the browser.
 

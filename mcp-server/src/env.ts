@@ -20,7 +20,7 @@ function parseEnvFile(path: string): Record<string, string> {
 
 const here = dirname(fileURLToPath(import.meta.url)); // .../mcp-server/dist
 const serverRoot = join(here, "..");                  // .../mcp-server
-const repoRoot = join(serverRoot, "..");              // .../JobApp
+export const repoRoot = join(serverRoot, "..");       // .../JobApp
 
 const local = parseEnvFile(join(serverRoot, ".env"));
 const app = parseEnvFile(join(repoRoot, ".env.local"));

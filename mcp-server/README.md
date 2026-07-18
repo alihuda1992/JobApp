@@ -17,6 +17,13 @@ A local stdio MCP server that lets Claude (Claude Code / Claude Desktop) read an
 - `save_job_score` — save a score + breakdown Claude computed itself onto a job
 - `save_cover_letter` — save a cover letter Claude wrote itself to `generated_docs`
 
+**Local files (`tailored-resumes/` at the repo root, gitignored)**
+- `save_tailored_resume` — park a base64-encoded `.docx`/`.pdf` resume built in-session (e.g. by the
+  claude.ai `tailor-resume` skill) into `tailored-resumes/`, named `Huda_Aliraza_<Company>_<Role>.<ext>`;
+  optionally appends a note to the job's pipeline application. This is the bridge that lets Claude
+  Desktop's sandboxed skills persist files onto the local machine.
+- `list_tailored_resumes` — list parked resume files, newest first
+
 **AI (via Supabase Edge Functions — each call spends a Gemini request)**
 - `score_job` — score resume vs job, saved back onto the job
 - `get_tailoring_suggestions` — gap suggestions for a job
