@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -322,6 +323,101 @@ const tailoredDir = process.env.TAILORED_RESUMES_DIR ?? join(repoRoot, "tailored
 function cleanIdentifier(s: string): string {
   return s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
+
+const resumeTemplatePath = join(repoRoot, "mcp-server", "private", "resume_template.docx");
+const renderScriptPath   = join(repoRoot, "mcp-server", "scripts", "render_resume.py");
+
+const RenderOp = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("set_text"),          anchor: z.string(), text: z.string(),              occurrence: z.number().int().positive().default(1) }),
+  z.object({ op: z.literal("replace_bullets"),   anchor: z.string(), bullets: z.array(z.string()),  occurrence: z.number().int().positive().default(1) }),
+  z.object({ op: z.literal("remove_role"),       anchor: z.string(), company_anchor: z.string().optional(), occurrence: z.number().int().positive().default(1) }),
+  z.object({ op: z.literal("set_skill_category"), label: z.string(), items: z.string(),             occurrence: z.number().int().positive().default(1) }),
+]);
+
+server.registerTool(
+  "render_tailored_resume",
+  {
+    title: "Render tailored resume locally",
+    description:
+      "Apply a list of structured edits to the local resume template and save the result to " +
+      "tailored-resumes/. Accepts edit operations (set_text, replace_bullets, remove_role, " +
+      "set_skill_category) rather than a file — no base64 transfer needed. " +
+      "Requires python3 + python-docx on the local machine. " +
+      "If job_id is given, stamps a note on the pipeline card.",
+    inputSchema: {
+      company:    z.string().min(1),
+      role:       z.string().min(1),
+      job_id:     z.string().uuid().optional(),
+      operations: z.array(RenderOp).min(1).describe(
+        "Ordered list of edit operations to apply to the template. " +
+        "anchor values must match the start of a paragraph in the template — " +
+        "check references/resume-template-spec.md for exact strings."
+      ),
+    },
+  },
+  wrap(async ({ company, role, job_id, operations }) => {
+    if (!existsSync(resumeTemplatePath)) {
+      throw new Error(
+        `Resume template not found at ${resumeTemplatePath}. ` +
+        `Copy assets/resume_template.docx from the tailor-resume skill bundle into mcp-server/private/.`
+      );
+    }
+    if (!existsSync(renderScriptPath)) {
+      throw new Error(`Render script not found at ${renderScriptPath}.`);
+    }
+
+    mkdirSync(tailoredDir, { recursive: true });
+    const base = `Huda_Aliraza_${cleanIdentifier(company)}_${cleanIdentifier(role)}`;
+    let name = base;
+    for (let n = 2; existsSync(join(tailoredDir, `${name}.docx`)); n++) name = `${base}_${n}`;
+    const outputPath = join(tailoredDir, `${name}.docx`);
+
+    const opsFile = join(tailoredDir, `.render_ops_${Date.now()}.json`);
+    writeFileSync(opsFile, JSON.stringify({ template_path: resumeTemplatePath, output_path: outputPath, operations }));
+
+    let result;
+    try {
+      result = spawnSync("python3", [renderScriptPath], {
+        input: readFileSync(opsFile),
+        encoding: "utf8",
+        timeout: 30_000,
+      });
+    } finally {
+      try { unlinkSync(opsFile); } catch {}
+    }
+
+    if (result.status !== 0) {
+      throw new Error(`Render failed:\n${result.stderr || result.error?.message || "unknown error"}`);
+    }
+
+    const output = JSON.parse(result.stdout.trim());
+
+    let application: unknown = null;
+    if (job_id) {
+      const supa = await getClient();
+      const { data: apps } = await supa
+        .from("applications")
+        .select("id, notes")
+        .eq("job_id", job_id)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      if (apps?.length) {
+        const line = `Tailored resume: ${name} (${new Date().toISOString().slice(0, 10)})`;
+        const notes = apps[0].notes ? `${apps[0].notes}\n${line}` : line;
+        const { data, error } = await supa
+          .from("applications")
+          .update({ notes })
+          .eq("id", apps[0].id)
+          .select("id, notes")
+          .single();
+        if (error) throw new Error(`File saved, but updating pipeline note failed: ${error.message}`);
+        application = data;
+      }
+    }
+
+    return ok({ saved: output.saved, purged_bullets: output.purged_bullets, application });
+  })
+);
 
 server.registerTool(
   "save_tailored_resume",

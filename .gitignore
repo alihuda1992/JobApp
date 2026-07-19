@@ -15,6 +15,9 @@ dist-ssr
 # Tailored resume files — personal data, local only
 tailored-resumes/*
 !tailored-resumes/README.md
+
+# Private resume assets (template contains personal info)
+mcp-server/private/
 .env
 .env.local
 .env.*.local
