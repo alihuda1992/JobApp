@@ -110,6 +110,7 @@ export function JobDetail() {
       user_id: user.id,
       job_id: dbJobId,
       status: 'saved',
+      last_actor: 'user',
     })
 
     addSavedJobId(job.id)

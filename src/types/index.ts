@@ -10,6 +10,7 @@ export interface Profile {
   onboarding_complete: boolean
   notion_token: string | null
   notion_db_id: string | null
+  last_seen_activity_at: string | null
   created_at: string
   updated_at: string
 }
@@ -80,9 +81,39 @@ export interface Application {
   applied_at: string | null
   notes: string | null
   next_step: string | null
+  archived_at: string | null
+  needs_review: boolean
+  last_actor: string | null
   created_at: string
   updated_at: string
   job?: Job
+}
+
+export type ActivityAction =
+  | 'created'
+  | 'status_changed'
+  | 'archived'
+  | 'unarchived'
+  | 'flagged_for_review'
+  | 'review_approved'
+  | 'review_dismissed'
+  | 'notes_updated'
+  | 'next_step_updated'
+  | 'deleted'
+  | 'cover_letter_saved'
+  | 'job_scored'
+
+export interface ActivityEntry {
+  id: string
+  user_id: string
+  application_id: string | null
+  job_id: string | null
+  actor: 'user' | 'claude' | 'system' | null
+  action: ActivityAction
+  job_title: string | null
+  company: string | null
+  details: Record<string, unknown>
+  created_at: string
 }
 
 export interface GeneratedDoc {

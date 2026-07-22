@@ -7,6 +7,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { repoRoot } from "./env.js";
 import { callEdgeFunction, getClient, getUserId } from "./supabase.js";
+import { EVENT_TO_STATUS, reconcile, type Evidence, type PipelineApp } from "./reconcile.js";
 
 const APPLICATION_STATUSES = ["saved", "applied", "interviewing", "offer", "closed", "rejected"] as const;
 
@@ -35,6 +36,25 @@ async function fetchJob(jobId: string) {
   return data;
 }
 
+// Best-effort entry in the app's activity feed for writes that don't touch the
+// applications table (those are logged by a DB trigger). Never fails the tool.
+async function logActivity(entry: {
+  action: string;
+  job_id?: string | null;
+  application_id?: string | null;
+  job_title?: string | null;
+  company?: string | null;
+  details?: Record<string, unknown>;
+}) {
+  try {
+    const supa = await getClient();
+    const userId = await getUserId();
+    await supa.from("activity_log").insert({ user_id: userId, actor: "claude", details: {}, ...entry });
+  } catch {
+    // activity feed is optional — ignore (e.g. migration 003 not applied yet)
+  }
+}
+
 async function fetchActiveResume() {
   const supa = await getClient();
   const { data, error } = await supa
@@ -57,15 +77,23 @@ server.registerTool(
   {
     title: "Get application pipeline",
     description:
-      "List all applications in the kanban pipeline with their job details, grouped by status (saved, applied, interviewing, offer, closed, rejected).",
-    inputSchema: {},
+      "List all applications in the kanban pipeline with their job details, grouped by status (saved, applied, interviewing, offer, closed, rejected). " +
+      "Archived applications (terminal cards auto-archived after 30 days) are excluded unless include_archived is true. Applications awaiting the " +
+      "user's review (needs_review=true — added from inferred/uncertain evidence, not yet approved onto the board) are excluded unless include_review is true.",
+    inputSchema: {
+      include_archived: z.boolean().default(false).describe("Also return archived applications"),
+      include_review: z.boolean().default(false).describe("Also return applications still pending in the Needs Review queue"),
+    },
   },
-  wrap(async () => {
+  wrap(async ({ include_archived, include_review }) => {
     const supa = await getClient();
-    const { data, error } = await supa
+    let q = supa
       .from("applications")
-      .select("id, status, applied_at, notes, next_step, updated_at, jobs(id, title, company, location, match_score, url)")
+      .select("id, status, applied_at, notes, next_step, archived_at, needs_review, updated_at, jobs(id, title, company, location, match_score, url)")
       .order("updated_at", { ascending: false });
+    if (!include_archived) q = q.is("archived_at", null);
+    if (!include_review) q = q.eq("needs_review", false);
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
     const grouped: Record<string, unknown[]> = {};
     for (const status of APPLICATION_STATUSES) grouped[status] = [];
@@ -130,7 +158,12 @@ server.registerTool(
   {
     title: "Add a job manually",
     description:
-      "Add a job to the app (source: manual). By default also creates a pipeline application in 'saved' status so it appears on the kanban board immediately.",
+      "Add a job to the app (source: manual). By default also creates a pipeline application in 'saved' status so it appears on the kanban board immediately. " +
+      "IMPORTANT — needs_review: set needs_review=true whenever this job/application is built from inference rather than the user directly telling you " +
+      "to add it in the current conversation (e.g. an 'unmatched' entry from reconcile_inbox, a guessed title/company from a vague email, a job pulled from " +
+      "search results the user didn't explicitly pick). Review-flagged cards are hidden from the live kanban board and instead land in the app's 'Needs " +
+      "Review' queue for the user to approve or dismiss themselves — this is the only correct way to surface an uncertain add when you're running " +
+      "unattended and can't actually ask. Only leave needs_review=false when a real person, in this conversation, told you to add this specific job.",
     inputSchema: {
       title: z.string().min(1),
       company: z.string().optional(),
@@ -141,9 +174,12 @@ server.registerTool(
       salary_max: z.number().int().optional(),
       tags: z.array(z.string()).optional(),
       save_to_pipeline: z.boolean().default(true).describe("Also create a 'saved' application for the kanban board"),
+      needs_review: z.boolean().default(false).describe(
+        "true = inferred, not user-confirmed — goes to the Needs Review queue instead of the live board. See tool description."
+      ),
     },
   },
-  wrap(async ({ save_to_pipeline, ...job }) => {
+  wrap(async ({ save_to_pipeline, needs_review, ...job }) => {
     const supa = await getClient();
     const userId = await getUserId();
     const { data: inserted, error } = await supa
@@ -157,7 +193,7 @@ server.registerTool(
     if (save_to_pipeline !== false) {
       const { data: app, error: appErr } = await supa
         .from("applications")
-        .insert({ user_id: userId, job_id: inserted.id, status: "saved" })
+        .insert({ user_id: userId, job_id: inserted.id, status: "saved", last_actor: "claude", needs_review: needs_review ?? false })
         .select()
         .single();
       if (appErr) throw new Error(`Job created but application failed: ${appErr.message}`);
@@ -171,14 +207,18 @@ server.registerTool(
   "create_application",
   {
     title: "Add job to pipeline",
-    description: "Create a pipeline application for an existing saved job.",
+    description:
+      "Create a pipeline application for an existing saved job. Set needs_review=true if the user didn't explicitly " +
+      "direct you to add this specific job in the current conversation (see add_job's description for the full rule) — " +
+      "it will land in the app's Needs Review queue instead of the live board.",
     inputSchema: {
       job_id: z.string().uuid(),
       status: z.enum(APPLICATION_STATUSES).default("saved"),
       notes: z.string().optional(),
+      needs_review: z.boolean().default(false).describe("true = inferred, not user-confirmed — goes to the Needs Review queue"),
     },
   },
-  wrap(async ({ job_id, status, notes }) => {
+  wrap(async ({ job_id, status, notes, needs_review }) => {
     const supa = await getClient();
     const userId = await getUserId();
     const { data, error } = await supa
@@ -189,6 +229,8 @@ server.registerTool(
         status: status ?? "saved",
         notes,
         applied_at: status === "applied" ? new Date().toISOString() : null,
+        last_actor: "claude",
+        needs_review: needs_review ?? false,
       })
       .select()
       .single();
@@ -202,21 +244,24 @@ server.registerTool(
   {
     title: "Update application",
     description:
-      "Update a pipeline application: move it to a new status (kanban stage), or set notes / next step. Moving to 'applied' stamps applied_at automatically.",
+      "Update a pipeline application: move it to a new status (kanban stage), set notes / next step, or archive/unarchive it. Moving to 'applied' stamps applied_at automatically.",
     inputSchema: {
       application_id: z.string().uuid(),
       status: z.enum(APPLICATION_STATUSES).optional(),
       notes: z.string().optional(),
       next_step: z.string().optional(),
+      archived: z.boolean().optional().describe("true = archive (hide from the board), false = restore"),
     },
   },
-  wrap(async ({ application_id, status, notes, next_step }) => {
+  wrap(async ({ application_id, status, notes, next_step, archived }) => {
     const supa = await getClient();
     const patch: Record<string, unknown> = {};
     if (status !== undefined) patch.status = status;
     if (notes !== undefined) patch.notes = notes;
     if (next_step !== undefined) patch.next_step = next_step;
-    if (!Object.keys(patch).length) throw new Error("Nothing to update — pass status, notes, or next_step.");
+    if (archived !== undefined) patch.archived_at = archived ? new Date().toISOString() : null;
+    if (!Object.keys(patch).length) throw new Error("Nothing to update — pass status, notes, next_step, or archived.");
+    patch.last_actor = "claude";
     if (status === "applied") {
       const { data: existing } = await supa.from("applications").select("applied_at").eq("id", application_id).single();
       if (!existing?.applied_at) patch.applied_at = new Date().toISOString();
@@ -236,6 +281,9 @@ server.registerTool(
   },
   wrap(async ({ application_id }) => {
     const supa = await getClient();
+    // Stamp the actor first so the activity trigger credits the delete to Claude
+    // (an actor-only update logs nothing itself)
+    await supa.from("applications").update({ last_actor: "claude" }).eq("id", application_id);
     const { error, count } = await supa
       .from("applications")
       .delete({ count: "exact" })
@@ -243,6 +291,90 @@ server.registerTool(
     if (error) throw new Error(error.message);
     if (!count) throw new Error(`No application found with id ${application_id}.`);
     return ok({ deleted: application_id });
+  })
+);
+
+// ---------- Inbox reconciliation (Claude scans Gmail in-session, this tool matches & applies) ----------
+
+const EvidenceSchema = z.object({
+  company: z.string().min(1).describe("Company name as it appears in the email"),
+  role: z.string().optional().describe("Role/title if the email mentions it — used to disambiguate multiple applications at the same company"),
+  event: z.enum(Object.keys(EVENT_TO_STATUS) as [keyof typeof EVENT_TO_STATUS, ...
+    (keyof typeof EVENT_TO_STATUS)[]]).describe(
+    "What the email signals: applied (application received/submitted), interview (interview invite or scheduling), offer, rejected, closed (role withdrawn/filled)"
+  ),
+  email_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Date of the email, YYYY-MM-DD"),
+  subject: z.string().optional().describe("Email subject line — recorded in the application notes as an audit trail"),
+  gmail_thread_id: z.string().optional(),
+});
+
+server.registerTool(
+  "reconcile_inbox",
+  {
+    title: "Reconcile Gmail evidence with pipeline",
+    description:
+      "Reconcile job-application emails against the kanban pipeline. Claude should first scan Gmail in-session " +
+      "(search e.g. 'application received', 'thank you for applying', 'interview', 'unfortunately', 'offer', plus " +
+      "greenhouse.io / lever.co / myworkday / ashbyhq / icims senders), extract one evidence entry per company/role " +
+      "signal, then call this tool. The tool matches evidence to applications by normalized company name (role title " +
+      "as tiebreaker) and returns: proposals (status is behind the email trail — forward moves and terminal " +
+      "rejected/closed only, never downgrades, never auto-touches an already-terminal application), in_sync, " +
+      "conflicts (terminal application contradicted by email — review manually), ambiguous (multiple matching " +
+      "applications), and unmatched (emails with no pipeline entry — possibly missed applications). Call with " +
+      "apply=false first and show the user the report; call again with apply=true to write the proposed status " +
+      "updates (stamps applied_at, appends an audit note with the email subject/date) — this only ever updates " +
+      "applications that already exist, so it's safe to auto-apply. " +
+      "unmatched entries are different: they are not yet confirmed to be real, distinct applications. NEVER call " +
+      "add_job for one with needs_review left at its default (false). If there's a live user in this conversation, " +
+      "show them the unmatched list and only add_job the ones they explicitly say to add. If you're running " +
+      "unattended (a scheduled/autonomous session with no user to ask), call add_job with needs_review=true for " +
+      "each unmatched entry that plausibly represents a real application — this routes it to the app's Needs " +
+      "Review queue, hidden from the live board, instead of guessing on the user's behalf.",
+    inputSchema: {
+      evidence: z.array(EvidenceSchema).min(1),
+      apply: z.boolean().default(false).describe("false = dry-run report only; true = apply the proposed status updates"),
+    },
+  },
+  wrap(async ({ evidence, apply }) => {
+    const supa = await getClient();
+    const { data, error } = await supa
+      .from("applications")
+      .select("id, status, applied_at, notes, updated_at, jobs(id, title, company)")
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    const apps: PipelineApp[] = (data ?? []).map((a: Record<string, unknown>) => ({
+      id: a.id as string,
+      status: a.status as string,
+      applied_at: a.applied_at as string | null,
+      notes: a.notes as string | null,
+      updated_at: a.updated_at as string,
+      job: (Array.isArray(a.jobs) ? a.jobs[0] : a.jobs) as PipelineApp["job"],
+    }));
+
+    const report = reconcile(apps, evidence as Evidence[]);
+
+    if (!apply) return ok({ mode: "dry_run", ...report });
+
+    const applied: unknown[] = [];
+    for (const p of report.proposals) {
+      const app = apps.find(a => a.id === p.application_id)!;
+      const patch: Record<string, unknown> = { status: p.to_status, last_actor: "claude" };
+      if (p.to_status === "applied" && !app.applied_at) {
+        patch.applied_at = `${p.evidence.email_date}T00:00:00Z`;
+      }
+      const line = `Gmail reconcile ${p.evidence.email_date}: ${p.evidence.subject ?? p.evidence.event} → ${p.to_status}`;
+      patch.notes = app.notes ? `${app.notes}\n${line}` : line;
+      const { data: updated, error: upErr } = await supa
+        .from("applications")
+        .update(patch)
+        .eq("id", p.application_id)
+        .select("id, status, applied_at")
+        .single();
+      if (upErr) throw new Error(`Applied ${applied.length}/${report.proposals.length}, then failed on ${p.company}: ${upErr.message}`);
+      applied.push({ ...p, result: updated });
+    }
+    return ok({ mode: "applied", applied, ...report, proposals: undefined });
   })
 );
 
@@ -277,6 +409,10 @@ server.registerTool(
       .select("id, title, company, match_score")
       .single();
     if (error) throw new Error(error.message);
+    await logActivity({
+      action: "job_scored", job_id, job_title: data.title, company: data.company,
+      details: { score },
+    });
     return ok(data);
   })
 );
@@ -311,6 +447,11 @@ server.registerTool(
       .select("id, job_id, type, tone, length, created_at")
       .single();
     if (error) throw new Error(error.message);
+    const job = await fetchJob(job_id).catch(() => null);
+    await logActivity({
+      action: "cover_letter_saved", job_id, job_title: job?.title, company: job?.company,
+      details: { tone: tone ?? "professional", length: length ?? "medium" },
+    });
     return ok(data);
   })
 );
@@ -406,7 +547,7 @@ server.registerTool(
         const notes = apps[0].notes ? `${apps[0].notes}\n${line}` : line;
         const { data, error } = await supa
           .from("applications")
-          .update({ notes })
+          .update({ notes, last_actor: "claude" })
           .eq("id", apps[0].id)
           .select("id, notes")
           .single();
@@ -481,7 +622,7 @@ server.registerTool(
         const notes = apps[0].notes ? `${apps[0].notes}\n${line}` : line;
         const { data, error } = await supa
           .from("applications")
-          .update({ notes })
+          .update({ notes, last_actor: "claude" })
           .eq("id", apps[0].id)
           .select("id, notes")
           .single();
@@ -545,6 +686,10 @@ server.registerTool(
       .update({ match_score: result.score, match_breakdown: result.breakdown })
       .eq("id", job_id);
     if (error) throw new Error(`Scored, but saving failed: ${error.message}`);
+    await logActivity({
+      action: "job_scored", job_id, job_title: job.title, company: job.company,
+      details: { score: result.score },
+    });
     return ok({ job: { id: job.id, title: job.title, company: job.company }, ...result });
   })
 );
@@ -604,6 +749,10 @@ server.registerTool(
       tone: tone ?? "professional",
       length: length ?? "medium",
       job_id,
+    });
+    await logActivity({
+      action: "cover_letter_saved", job_id, job_title: job.title, company: job.company,
+      details: { tone: tone ?? "professional", length: length ?? "medium" },
     });
     return ok({ job: { id: job.id, title: job.title, company: job.company }, ...result });
   })

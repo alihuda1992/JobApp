@@ -294,6 +294,7 @@ export function Search() {
           user_id: user.id,
           job_id: job.id,
           status: 'saved',
+          last_actor: 'user',
         })
         navigate(`/jobs/${job.id}`)
       }
@@ -392,6 +393,7 @@ export function Search() {
         user_id: user.id,
         job_id: dbJobId,
         status: 'saved',
+        last_actor: 'user',
       })
     }
 

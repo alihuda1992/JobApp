@@ -13,6 +13,15 @@ A local stdio MCP server that lets Claude (Claude Code / Claude Desktop) read an
 - `add_job` — add a manual job; optionally auto-creates a `saved` application
 - `create_application` / `update_application` / `delete_application` — manage the pipeline (move stages, notes, next steps)
 
+**Inbox reconciliation**
+- `reconcile_inbox` — reconcile job-application emails against the pipeline. Claude scans Gmail
+  in-session (via the Gmail connector), extracts structured evidence (company, role, event, date),
+  and this tool matches it to applications by normalized company name. Dry-run (`apply: false`)
+  returns proposed status moves (forward/terminal only — never downgrades or touches an already
+  rejected/closed application), conflicts, ambiguous matches, and unmatched emails (missed
+  applications — confirm with the user, then `add_job`). `apply: true` writes the proposed moves,
+  stamping `applied_at` and an audit note with the email subject/date.
+
 **Save (free — Claude does the AI work in-session, these just persist it)**
 - `save_job_score` — save a score + breakdown Claude computed itself onto a job
 - `save_cover_letter` — save a cover letter Claude wrote itself to `generated_docs`

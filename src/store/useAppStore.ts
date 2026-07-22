@@ -17,6 +17,9 @@ interface AppStore {
   setSearchResults: (jobs: Job[]) => void
   updateJobScore: (jobId: string, score: number, breakdown: Job['match_breakdown']) => void
   addSavedJobId: (id: string) => void
+  unreadActivity: number
+  setUnreadActivity: (count: number) => void
+  bumpUnreadActivity: () => void
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -61,4 +64,8 @@ export const useAppStore = create<AppStore>((set) => ({
     set((state) => ({
       savedJobIds: new Set([...state.savedJobIds, id]),
     })),
+
+  unreadActivity: 0,
+  setUnreadActivity: (count) => set({ unreadActivity: count }),
+  bumpUnreadActivity: () => set((state) => ({ unreadActivity: state.unreadActivity + 1 })),
 }))

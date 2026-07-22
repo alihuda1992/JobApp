@@ -1,15 +1,69 @@
+import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import { supabase } from '@/lib/supabase'
+import { useAppStore } from '@/store/useAppStore'
+import type { ActivityEntry } from '@/types'
 
 const navItems = [
   { to: '/', label: 'Pipeline', icon: '⬡' },
   { to: '/search', label: 'Search', icon: '⊹' },
   { to: '/resume', label: 'Resume', icon: '◈' },
+  { to: '/activity', label: 'Activity', icon: '✦' },
   { to: '/settings', label: 'Settings', icon: '◎' },
 ]
 
 export function Sidebar() {
   const { user, signOut } = useAuth()
+  const { unreadActivity, setUnreadActivity, bumpUnreadActivity } = useAppStore()
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+
+    async function loadUnread() {
+      // Unseen entries not made by the user in-app (claude / system / unknown)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('last_seen_activity_at')
+        .eq('id', user!.id)
+        .single()
+      if (cancelled || !profile) return
+      const since = profile.last_seen_activity_at ?? '1970-01-01'
+      const { count, error } = await supabase
+        .from('activity_log')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user!.id)
+        .gt('created_at', since)
+        .or('actor.neq.user,actor.is.null')
+      if (!cancelled && !error && count !== null) setUnreadActivity(count)
+    }
+
+    loadUnread()
+
+    const channel = supabase
+      .channel('activity-badge')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'activity_log', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const entry = payload.new as ActivityEntry
+          if (entry.actor !== 'user') bumpUnreadActivity()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
+  const badge =
+    unreadActivity > 0 ? (
+      <span className="nav-badge">{unreadActivity > 99 ? '99+' : unreadActivity}</span>
+    ) : null
 
   return (
     <>
@@ -31,6 +85,7 @@ export function Sidebar() {
             >
               <span className="sidebar-link-icon">{icon}</span>
               {label}
+              {to === '/activity' && badge}
             </NavLink>
           ))}
         </nav>
@@ -54,7 +109,10 @@ export function Sidebar() {
               `mobile-tab${isActive ? ' mobile-tab--active' : ''}`
             }
           >
-            <span className="mobile-tab-icon">{icon}</span>
+            <span className="mobile-tab-icon">
+              {icon}
+              {to === '/activity' && unreadActivity > 0 && <span className="mobile-tab-dot" />}
+            </span>
             <span className="mobile-tab-label">{label}</span>
           </NavLink>
         ))}
@@ -125,6 +183,30 @@ export function Sidebar() {
           font-size: 15px;
           width: 18px;
           text-align: center;
+        }
+
+        .nav-badge {
+          margin-left: auto;
+          font-size: 10px;
+          font-weight: 700;
+          font-family: "DM Mono", monospace;
+          line-height: 1;
+          padding: 3px 6px;
+          border-radius: 999px;
+          background: var(--color-accent);
+          color: #0e0f11;
+        }
+
+        .mobile-tab-icon { position: relative; }
+
+        .mobile-tab-dot {
+          position: absolute;
+          top: -2px;
+          right: -6px;
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: var(--color-accent);
         }
 
         .sidebar-bottom {

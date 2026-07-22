@@ -11,6 +11,7 @@ import { Resume } from '@/pages/Resume'
 import { CoverLetter } from '@/pages/CoverLetter'
 import { TailoredResume } from '@/pages/TailoredResume'
 import { Settings } from '@/pages/Settings'
+import { Activity } from '@/pages/Activity'
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/resume" element={<Resume />} />
+          <Route path="/activity" element={<Activity />} />
           <Route path="/cover/:jobId" element={<CoverLetter />} />
           <Route path="/tailored-resume/:jobId" element={<TailoredResume />} />
           <Route path="/settings" element={<Settings />} />

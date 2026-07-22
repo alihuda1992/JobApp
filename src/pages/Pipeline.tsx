@@ -16,6 +16,10 @@ async function notionUpsert(app: Application, notionToken: string, notionDbId: s
 
 type KanbanStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'rejected'
 
+// Terminal cards untouched this long are auto-archived on Pipeline load
+const ARCHIVE_AFTER_DAYS = 30
+const TERMINAL_STATUSES = ['rejected', 'closed']
+
 const COLUMNS: { key: KanbanStatus; label: string; accent: string }[] = [
   { key: 'saved',        label: 'Saved',        accent: 'rgba(242,240,234,0.35)' },
   { key: 'applied',      label: 'Applied',      accent: 'var(--color-accent)' },
@@ -171,6 +175,12 @@ export function Pipeline() {
   const [dragOver, setDragOver] = useState<KanbanStatus | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
+  const [archivedCount, setArchivedCount] = useState(0)
+  const [showArchived, setShowArchived] = useState(false)
+  const [archivedApps, setArchivedApps] = useState<Application[]>([])
+  const [reviewCount, setReviewCount] = useState(0)
+  const [showReview, setShowReview] = useState(false)
+  const [reviewApps, setReviewApps] = useState<Application[]>([])
 
   const touchRef = useRef<{
     cardId: string | null; colOver: KanbanStatus | null
@@ -218,11 +228,25 @@ export function Pipeline() {
         return
       }
 
-      const [appsResult, resumeResult] = await Promise.all([
+      // Auto-archive terminal cards that have sat untouched for 30+ days.
+      // Fails silently if migration 003 hasn't been applied yet.
+      const cutoff = new Date(Date.now() - ARCHIVE_AFTER_DAYS * 86400000).toISOString()
+      await supabase
+        .from('applications')
+        .update({ archived_at: new Date().toISOString(), last_actor: 'system' })
+        .eq('user_id', user.id)
+        .in('status', TERMINAL_STATUSES)
+        .is('archived_at', null)
+        .lt('updated_at', cutoff)
+
+      // eslint-disable-next-line prefer-const -- appsResult is reassigned in the pre-migration fallback below
+      let [appsResult, resumeResult] = await Promise.all([
         supabase
           .from('applications')
           .select('*, job:jobs!job_id(*)')
           .eq('user_id', user.id)
+          .is('archived_at', null)
+          .eq('needs_review', false)
           .order('created_at', { ascending: false }),
         supabase
           .from('resumes')
@@ -235,10 +259,37 @@ export function Pipeline() {
       ])
 
       if (cancelled) return
-      if (appsResult.error) console.error('Pipeline fetch error:', appsResult.error)
+      if (appsResult.error) {
+        // Pre-migration fallback: archived_at / needs_review columns don't exist yet
+        appsResult = await supabase
+          .from('applications')
+          .select('*, job:jobs!job_id(*)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+        if (appsResult.error) console.error('Pipeline fetch error:', appsResult.error)
+      }
+      if (cancelled) return
       const apps = (appsResult.data as Application[]) ?? []
       setApplications(apps)
       setLoading(false)
+
+      supabase
+        .from('applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .not('archived_at', 'is', null)
+        .then(({ count, error }) => {
+          if (!cancelled && !error && count !== null) setArchivedCount(count)
+        })
+
+      supabase
+        .from('applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('needs_review', true)
+        .then(({ count, error }) => {
+          if (!cancelled && !error && count !== null) setReviewCount(count)
+        })
 
       const resumeParsed = resumeResult.data?.parsed ?? resume?.parsed
       const userPrefs = profile ? { seniority: profile.seniority, target_titles: profile.target_titles } : undefined
@@ -258,7 +309,20 @@ export function Pipeline() {
                 .select('*, job:jobs!job_id(*)')
                 .eq('id', (payload.new as { id: string }).id)
                 .single()
-              if (data) upsertApplication(data as Application)
+              if (data) {
+                const app = data as Application
+                if (app.archived_at) {
+                  removeApplication(app.id)
+                  setArchivedCount((c) => c + 1)
+                } else if (app.needs_review) {
+                  // Not appended to reviewApps live (mirrors archivedApps, which is
+                  // also snapshot-on-open) — the badge count is what updates live.
+                  removeApplication(app.id)
+                  setReviewCount((c) => c + 1)
+                } else {
+                  upsertApplication(app)
+                }
+              }
             }
           }
         )
@@ -279,7 +343,7 @@ export function Pipeline() {
     const app = applications.find((a) => a.id === id)
     if (!app || app.status === targetStatus) return
 
-    const patch: Record<string, unknown> = { status: targetStatus }
+    const patch: Record<string, unknown> = { status: targetStatus, last_actor: 'user' }
     if (targetStatus === 'applied' && !app.applied_at) {
       patch.applied_at = new Date().toISOString()
     }
@@ -388,10 +452,77 @@ export function Pipeline() {
 
   async function deleteApplication(id: string) {
     removeApplication(id)
+    // Stamp the actor first so the activity log credits the delete correctly
+    // (the stamp-only update logs nothing; harmless no-op pre-migration)
+    await supabase.from('applications').update({ last_actor: 'user' }).eq('id', id)
     await supabase.from('applications').delete().eq('id', id)
   }
 
-  const visible = applications.filter((a) => KANBAN_KEYS.includes(a.status))
+  async function toggleArchived() {
+    const next = !showArchived
+    setShowArchived(next)
+    setShowReview(false)
+    if (next) {
+      const { data } = await supabase
+        .from('applications')
+        .select('*, job:jobs!job_id(*)')
+        .not('archived_at', 'is', null)
+        .order('archived_at', { ascending: false })
+      setArchivedApps((data as Application[]) ?? [])
+    }
+  }
+
+  async function toggleReview() {
+    const next = !showReview
+    setShowReview(next)
+    setShowArchived(false)
+    if (next) {
+      const { data } = await supabase
+        .from('applications')
+        .select('*, job:jobs!job_id(*)')
+        .eq('needs_review', true)
+        .order('created_at', { ascending: false })
+      setReviewApps((data as Application[]) ?? [])
+    }
+  }
+
+  async function approveReview(app: Application) {
+    setReviewApps((prev) => prev.filter((a) => a.id !== app.id))
+    setReviewCount((c) => Math.max(0, c - 1))
+    await supabase
+      .from('applications')
+      .update({ needs_review: false, last_actor: 'user' })
+      .eq('id', app.id)
+    // realtime UPDATE re-adds it to the board; upsert locally too in case realtime lags
+    upsertApplication({ ...app, needs_review: false })
+  }
+
+  async function dismissReview(id: string) {
+    setReviewApps((prev) => prev.filter((a) => a.id !== id))
+    setReviewCount((c) => Math.max(0, c - 1))
+    await supabase.from('applications').update({ last_actor: 'user' }).eq('id', id)
+    await supabase.from('applications').delete().eq('id', id)
+  }
+
+  async function restoreArchived(app: Application) {
+    setArchivedApps((prev) => prev.filter((a) => a.id !== app.id))
+    setArchivedCount((c) => Math.max(0, c - 1))
+    await supabase
+      .from('applications')
+      .update({ archived_at: null, last_actor: 'user' })
+      .eq('id', app.id)
+    // realtime UPDATE re-adds it to the board; upsert locally too in case realtime lags
+    upsertApplication({ ...app, archived_at: null })
+  }
+
+  async function deleteArchived(id: string) {
+    setArchivedApps((prev) => prev.filter((a) => a.id !== id))
+    setArchivedCount((c) => Math.max(0, c - 1))
+    await supabase.from('applications').update({ last_actor: 'user' }).eq('id', id)
+    await supabase.from('applications').delete().eq('id', id)
+  }
+
+  const visible = applications.filter((a) => KANBAN_KEYS.includes(a.status) && !a.archived_at && !a.needs_review)
   const byStatus = (key: KanbanStatus) =>
     visible
       .filter((a) => a.status === key)
@@ -407,6 +538,16 @@ export function Pipeline() {
         <h1 className="page-title">Pipeline</h1>
         {!loading && (
           <span className="pipeline-total">{visible.length} application{visible.length !== 1 ? 's' : ''}</span>
+        )}
+        {!loading && (reviewCount > 0 || showReview) && (
+          <button className="btn btn-ghost review-toggle" onClick={toggleReview}>
+            {showReview ? '← Back to board' : `Needs Review (${reviewCount})`}
+          </button>
+        )}
+        {!loading && (archivedCount > 0 || showArchived) && (
+          <button className="btn btn-ghost archived-toggle" onClick={toggleArchived}>
+            {showArchived ? '← Back to board' : `Archived (${archivedCount})`}
+          </button>
         )}
         {notionConnected && (
           <div className="pipeline-notion">
@@ -434,6 +575,57 @@ export function Pipeline() {
                   </div>
                 ))}
               </div>
+            </div>
+          ))}
+        </div>
+      ) : showReview ? (
+        <div className="archived-list">
+          <div className="review-hint">
+            Cards below were inferred from an email or search result rather than something you
+            explicitly confirmed. Approve to add them to the board, or dismiss if they're wrong.
+          </div>
+          {reviewApps.length === 0 && (
+            <div className="archived-empty">Nothing waiting on review.</div>
+          )}
+          {reviewApps.map((app) => (
+            <div key={app.id} className="archived-row review-row card">
+              <div className="archived-info">
+                <span className="archived-title">{app.job?.title ?? 'Unknown role'}</span>
+                <span className="archived-meta">
+                  {[app.job?.company, app.status].filter(Boolean).join(' · ')}
+                </span>
+                {app.notes && <span className="review-notes">{app.notes}</span>}
+              </div>
+              <button className="btn btn-ghost archived-btn" onClick={() => approveReview(app)}>
+                Approve
+              </button>
+              <button className="btn btn-ghost archived-btn archived-btn--del" onClick={() => dismissReview(app.id)}>
+                Dismiss
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : showArchived ? (
+        <div className="archived-list">
+          {archivedApps.length === 0 && (
+            <div className="archived-empty">Nothing archived yet.</div>
+          )}
+          {archivedApps.map((app) => (
+            <div key={app.id} className="archived-row card">
+              <div className="archived-info">
+                <span className="archived-title">{app.job?.title ?? 'Unknown role'}</span>
+                <span className="archived-meta">
+                  {[app.job?.company, app.status, app.archived_at ? `archived ${relativeDate(app.archived_at)}` : null]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+              </div>
+              <button className="btn btn-ghost archived-btn" onClick={() => restoreArchived(app)}>
+                Restore
+              </button>
+              <button className="btn btn-ghost archived-btn archived-btn--del" onClick={() => deleteArchived(app.id)}>
+                Delete
+              </button>
             </div>
           ))}
         </div>
@@ -481,6 +673,64 @@ export function Pipeline() {
           flex-shrink: 0;
         }
         .pipeline-notion { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+        .archived-toggle { font-size: 12px; padding: 5px 12px; }
+        .archived-list {
+          flex: 1;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          max-width: 640px;
+        }
+        .archived-empty {
+          font-size: 13px;
+          color: rgba(242,240,234,0.35);
+          padding: 24px 0;
+        }
+        .archived-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+        }
+        .archived-info {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .archived-title {
+          font-size: 13px;
+          font-weight: 600;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .archived-meta {
+          font-size: 12px;
+          color: rgba(242,240,234,0.45);
+        }
+        .archived-btn { font-size: 12px; padding: 4px 10px; flex-shrink: 0; }
+        .archived-btn--del { color: oklch(65% 0.18 25); }
+        .review-toggle {
+          font-size: 12px;
+          padding: 5px 12px;
+          color: var(--color-secondary);
+          border-color: rgba(255,193,99,0.3);
+        }
+        .review-hint {
+          font-size: 12px;
+          color: rgba(242,240,234,0.5);
+          padding: 0 2px 4px;
+        }
+        .review-row { align-items: flex-start; }
+        .review-notes {
+          font-size: 11px;
+          color: rgba(242,240,234,0.4);
+          margin-top: 4px;
+          display: block;
+        }
         .notion-sync-btn { font-size: 12px; padding: 5px 12px; }
         .notion-sync-msg { font-size: 12px; color: rgba(242,240,234,0.5); }
         .page-title { font-size: 28px; }
