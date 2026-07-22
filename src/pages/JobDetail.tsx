@@ -4,6 +4,27 @@ import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/useAppStore'
 import type { Job } from '@/types'
 
+type AppStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'closed' | 'rejected'
+
+const STATUS_OPTIONS: { value: AppStatus; label: string }[] = [
+  { value: 'saved', label: 'Saved' },
+  { value: 'applied', label: 'Applied' },
+  { value: 'interviewing', label: 'Interviewing' },
+  { value: 'offer', label: 'Offer' },
+  { value: 'closed', label: 'Closed' },
+  { value: 'rejected', label: 'Rejected' },
+]
+
+interface AppFields {
+  id: string
+  status: AppStatus
+  notes: string | null
+  next_step: string | null
+  applied_at: string | null
+  archived_at: string | null
+  needs_review: boolean
+}
+
 function scoreColor(score: number | null): string {
   if (score === null) return 'var(--color-match-gray)'
   if (score >= 90) return 'var(--color-match-green)'
@@ -36,6 +57,18 @@ export function JobDetail() {
   const [inPipeline, setInPipeline] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  const [application, setApplication] = useState<AppFields | null>(null)
+  const [statusDraft, setStatusDraft] = useState<AppStatus>('saved')
+  const [notesDraft, setNotesDraft] = useState('')
+  const [nextStepDraft, setNextStepDraft] = useState('')
+  const [savingApp, setSavingApp] = useState(false)
+  const [removing, setRemoving] = useState(false)
+
+  const [editingJob, setEditingJob] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
+  const [companyDraft, setCompanyDraft] = useState('')
+  const [savingJob, setSavingJob] = useState(false)
+
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [dismissed, setDismissed] = useState<Set<number>>(new Set())
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
@@ -62,15 +95,100 @@ export function JobDetail() {
     const { data } = await supabase.from('jobs').select('*').eq('id', jobId).single()
     if (data) {
       setJob(data as Job)
-      // Check if application exists
       const { data: app } = await supabase
         .from('applications')
-        .select('id')
+        .select('id, status, notes, next_step, applied_at, archived_at, needs_review')
         .eq('job_id', jobId)
         .maybeSingle()
       setInPipeline(!!app)
+      if (app) {
+        const a = app as AppFields
+        setApplication(a)
+        setStatusDraft(a.status)
+        setNotesDraft(a.notes ?? '')
+        setNextStepDraft(a.next_step ?? '')
+      } else {
+        setApplication(null)
+      }
     }
     setLoading(false)
+  }
+
+  const appDirty =
+    !!application &&
+    (statusDraft !== application.status ||
+      notesDraft !== (application.notes ?? '') ||
+      nextStepDraft !== (application.next_step ?? ''))
+
+  async function saveApplicationEdits() {
+    if (!application || savingApp) return
+    setSavingApp(true)
+    const patch: Record<string, unknown> = { last_actor: 'user' }
+    if (statusDraft !== application.status) {
+      patch.status = statusDraft
+      if (statusDraft === 'applied' && !application.applied_at) patch.applied_at = new Date().toISOString()
+    }
+    if (notesDraft !== (application.notes ?? '')) patch.notes = notesDraft || null
+    if (nextStepDraft !== (application.next_step ?? '')) patch.next_step = nextStepDraft || null
+
+    const { error } = await supabase.from('applications').update(patch).eq('id', application.id)
+    if (!error) {
+      setApplication({
+        ...application,
+        status: statusDraft,
+        notes: notesDraft || null,
+        next_step: nextStepDraft || null,
+        applied_at: (patch.applied_at as string) ?? application.applied_at,
+      })
+    }
+    setSavingApp(false)
+  }
+
+  async function removeFromPipeline() {
+    if (!application || removing) return
+    setRemoving(true)
+    await supabase.from('applications').update({ last_actor: 'user' }).eq('id', application.id)
+    await supabase.from('applications').delete().eq('id', application.id)
+    setApplication(null)
+    setInPipeline(false)
+    setRemoving(false)
+  }
+
+  async function approveReview() {
+    if (!application) return
+    const { error } = await supabase
+      .from('applications')
+      .update({ needs_review: false, last_actor: 'user' })
+      .eq('id', application.id)
+    if (!error) setApplication({ ...application, needs_review: false })
+  }
+
+  async function restoreFromArchive() {
+    if (!application) return
+    const { error } = await supabase
+      .from('applications')
+      .update({ archived_at: null, last_actor: 'user' })
+      .eq('id', application.id)
+    if (!error) setApplication({ ...application, archived_at: null })
+  }
+
+  function startEditingJob() {
+    if (!job) return
+    setTitleDraft(job.title)
+    setCompanyDraft(job.company ?? '')
+    setEditingJob(true)
+  }
+
+  async function saveJobEdits() {
+    if (!job || !titleDraft.trim() || savingJob) return
+    setSavingJob(true)
+    const patch = { title: titleDraft.trim(), company: companyDraft.trim() || null }
+    const { error } = await supabase.from('jobs').update(patch).eq('id', job.id)
+    if (!error) {
+      setJob({ ...job, ...patch })
+      setEditingJob(false)
+    }
+    setSavingJob(false)
   }
 
   async function handleAddToPipeline() {
@@ -106,15 +224,21 @@ export function JobDetail() {
       if (saved) dbJobId = saved.id
     }
 
-    await supabase.from('applications').insert({
-      user_id: user.id,
-      job_id: dbJobId,
-      status: 'saved',
-      last_actor: 'user',
-    })
+    const { data: app } = await supabase
+      .from('applications')
+      .insert({ user_id: user.id, job_id: dbJobId, status: 'saved', last_actor: 'user' })
+      .select('id, status, notes, next_step, applied_at, archived_at, needs_review')
+      .single()
 
     addSavedJobId(job.id)
     setInPipeline(true)
+    if (app) {
+      const a = app as AppFields
+      setApplication(a)
+      setStatusDraft(a.status)
+      setNotesDraft(a.notes ?? '')
+      setNextStepDraft(a.next_step ?? '')
+    }
     setSaving(false)
   }
 
@@ -163,7 +287,36 @@ export function JobDetail() {
       <div className="jd-layout">
         {/* Left: Job Info */}
         <div className="jd-main">
-          <h1 className="jd-title">{job.title}</h1>
+          {editingJob ? (
+            <div className="jd-edit-job">
+              <input
+                className="jd-edit-input jd-edit-title"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                placeholder="Job title"
+                autoFocus
+              />
+              <input
+                className="jd-edit-input"
+                value={companyDraft}
+                onChange={(e) => setCompanyDraft(e.target.value)}
+                placeholder="Company"
+              />
+              <div className="jd-edit-actions">
+                <button className="btn btn-primary" onClick={saveJobEdits} disabled={!titleDraft.trim() || savingJob}>
+                  {savingJob ? 'Saving…' : 'Save'}
+                </button>
+                <button className="btn btn-ghost" onClick={() => setEditingJob(false)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <h1 className="jd-title">
+              {job.title}
+              {job.user_id && (
+                <button className="jd-edit-trigger" onClick={startEditingJob} title="Edit title / company">✎</button>
+              )}
+            </h1>
+          )}
 
           <div className="jd-meta">
             {job.company && <span className="jd-meta-item">{job.company}</span>}
@@ -218,6 +371,67 @@ export function JobDetail() {
             >
               {saving ? 'Adding…' : inPipeline ? 'In Pipeline ✓' : 'Add to Pipeline'}
             </button>
+
+            {application?.needs_review && (
+              <div className="jd-review-banner">
+                <span>Pending your review — added from inferred evidence, not yet confirmed.</span>
+                <div className="jd-review-actions">
+                  <button className="btn btn-ghost" onClick={approveReview}>Approve</button>
+                  <button className="btn btn-ghost jd-danger" onClick={removeFromPipeline} disabled={removing}>
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {application?.archived_at && (
+              <div className="jd-review-banner">
+                <span>Archived (30+ days untouched in a closed status).</span>
+                <div className="jd-review-actions">
+                  <button className="btn btn-ghost" onClick={restoreFromArchive}>Restore</button>
+                </div>
+              </div>
+            )}
+
+            {application && !application.needs_review && (
+              <div className="jd-app-edit">
+                <label className="jd-field-label">Status</label>
+                <select
+                  className="jd-select"
+                  value={statusDraft}
+                  onChange={(e) => setStatusDraft(e.target.value as AppStatus)}
+                >
+                  {STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+
+                <label className="jd-field-label">Notes</label>
+                <textarea
+                  className="jd-textarea"
+                  value={notesDraft}
+                  onChange={(e) => setNotesDraft(e.target.value)}
+                  placeholder="Add a note…"
+                  rows={4}
+                />
+
+                <label className="jd-field-label">Next step</label>
+                <input
+                  className="jd-edit-input"
+                  value={nextStepDraft}
+                  onChange={(e) => setNextStepDraft(e.target.value)}
+                  placeholder="e.g. Follow up Friday"
+                />
+
+                <button className="btn btn-primary jd-save-btn" onClick={saveApplicationEdits} disabled={!appDirty || savingApp}>
+                  {savingApp ? 'Saving…' : 'Save changes'}
+                </button>
+
+                <button className="btn btn-ghost jd-danger jd-remove-btn" onClick={removeFromPipeline} disabled={removing}>
+                  {removing ? 'Removing…' : 'Remove from Pipeline'}
+                </button>
+              </div>
+            )}
 
             <button
               className="btn btn-ghost jd-cover-btn"
@@ -391,6 +605,50 @@ export function JobDetail() {
           font-size: 14px; cursor: pointer; flex-shrink: 0; padding: 0; line-height: 1;
         }
         .chip-dismiss:hover { color: rgba(242,240,234,0.65); }
+
+        /* Job title inline edit */
+        .jd-title { display: flex; align-items: baseline; gap: 10px; }
+        .jd-edit-trigger {
+          background: none; border: none; color: rgba(242,240,234,0.3);
+          font-size: 15px; cursor: pointer; padding: 0; flex-shrink: 0;
+        }
+        .jd-edit-trigger:hover { color: var(--color-accent); }
+        .jd-edit-job { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+        .jd-edit-input {
+          width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.03);
+          border: 1px solid var(--color-border); border-radius: var(--radius-btn);
+          color: var(--color-text); font-size: 14px; padding: 8px 10px; font-family: inherit;
+        }
+        .jd-edit-title { font-size: 20px; font-weight: 600; }
+        .jd-edit-actions { display: flex; gap: 8px; }
+
+        /* Application (pipeline) edit panel */
+        .jd-app-edit {
+          display: flex; flex-direction: column; gap: 6px;
+          padding: 12px 0 4px; margin-top: 2px;
+          border-top: 1px solid var(--color-border);
+        }
+        .jd-field-label {
+          font-size: 11px; font-weight: 600; text-transform: uppercase;
+          letter-spacing: 0.4px; color: rgba(242,240,234,0.4); margin-top: 6px;
+        }
+        .jd-select, .jd-textarea {
+          width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.03);
+          border: 1px solid var(--color-border); border-radius: var(--radius-btn);
+          color: var(--color-text); font-size: 13px; padding: 8px 10px; font-family: inherit;
+          resize: vertical;
+        }
+        .jd-save-btn { width: 100%; margin-top: 6px; }
+        .jd-remove-btn { width: 100%; }
+        .jd-danger { color: oklch(65% 0.18 25) !important; }
+        .jd-review-banner {
+          display: flex; flex-direction: column; gap: 8px;
+          font-size: 12px; color: var(--color-secondary);
+          background: rgba(255,193,99,0.08); border: 1px solid rgba(255,193,99,0.3);
+          border-radius: var(--radius-btn); padding: 10px 12px; margin-top: 4px;
+        }
+        .jd-review-actions { display: flex; gap: 8px; }
+        .jd-review-actions .btn { flex: 1; font-size: 12px; padding: 6px 10px; }
       `}</style>
     </div>
   )
