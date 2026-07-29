@@ -13,6 +13,13 @@ A local stdio MCP server that lets Claude (Claude Code / Claude Desktop) read an
 - `add_job` — add a manual job; optionally auto-creates a `saved` application
 - `create_application` / `update_application` / `delete_application` — manage the pipeline (move stages, notes, next steps)
 
+**Interview lifecycle**
+- `add_interview_step` / `update_interview_step` / `delete_interview_step` — track the sub-steps of an
+  application's interview loop (round + sequence within round, format, duration, interviewer, schedule,
+  status). Meant for detail that doesn't show up in Gmail — a recruiter call laying out a 3-round, 4-interview
+  process, a scheduling link, etc. — as well as anything a scheduling email confirms. `get_pipeline` returns
+  each application's steps ordered by round/sequence.
+
 **Inbox reconciliation**
 - `reconcile_inbox` — reconcile job-application emails against the pipeline. Claude scans Gmail
   in-session (via the Gmail connector), extracts structured evidence (company, role, event, date),
@@ -20,7 +27,11 @@ A local stdio MCP server that lets Claude (Claude Code / Claude Desktop) read an
   returns proposed status moves (forward/terminal only — never downgrades or touches an already
   rejected/closed application), conflicts, ambiguous matches, and unmatched emails (missed
   applications — confirm with the user, then `add_job`). `apply: true` writes the proposed moves,
-  stamping `applied_at` and an audit note with the email subject/date.
+  stamping `applied_at` and an audit note with the email subject/date. Evidence can also carry
+  `interview_step_scheduled_at` (+ optional `interview_step_round`) when an email confirms/reschedules
+  a specific step; the tool advances that application's earliest still-pending `interview_steps` row
+  to `scheduled`, reported under `interview_step_matches` (applied only when `apply: true`). It never
+  invents steps for an application with none recorded — that's what `add_interview_step` is for.
 
 **Save (free — Claude does the AI work in-session, these just persist it)**
 - `save_job_score` — save a score + breakdown Claude computed itself onto a job

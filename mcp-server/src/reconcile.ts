@@ -18,6 +18,19 @@ export interface Evidence {
   email_date: string; // YYYY-MM-DD
   subject?: string;
   gmail_thread_id?: string;
+  // Optional: present when the email confirms/reschedules a specific interview step
+  // (e.g. "Your onsite is confirmed for Aug 5") rather than just signalling the
+  // 'interview' event in general.
+  interview_step_scheduled_at?: string; // ISO date or datetime
+  interview_step_round?: number; // explicit round hint, if the email states which round
+}
+
+export interface InterviewStepRef {
+  id: string;
+  round_number: number;
+  sequence_in_round: number;
+  title: string;
+  status: string; // 'pending_schedule' | 'scheduled' | 'completed' | 'cancelled'
 }
 
 export interface PipelineApp {
@@ -27,6 +40,28 @@ export interface PipelineApp {
   notes: string | null;
   updated_at: string;
   job: { id: string; title: string | null; company: string | null };
+  interview_steps?: InterviewStepRef[];
+}
+
+/**
+ * Given an application's interview steps and a scheduling email, pick which step
+ * the email is about. An explicit round hint wins; otherwise assume it's the
+ * earliest still-pending step, since recruiters overwhelmingly schedule rounds
+ * in order. Returns undefined if there's nothing pending to advance.
+ */
+export function pickStepToSchedule(
+  steps: InterviewStepRef[] | undefined,
+  roundHint?: number
+): InterviewStepRef | undefined {
+  const pending = (steps ?? []).filter(s => s.status === "pending_schedule");
+  if (!pending.length) return undefined;
+  const ordered = (list: InterviewStepRef[]) =>
+    [...list].sort((a, b) => a.round_number - b.round_number || a.sequence_in_round - b.sequence_in_round);
+  if (roundHint != null) {
+    const inRound = ordered(pending.filter(s => s.round_number === roundHint));
+    if (inRound.length) return inRound[0];
+  }
+  return ordered(pending)[0];
 }
 
 export interface Proposal {

@@ -7,9 +7,11 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { repoRoot } from "./env.js";
 import { callEdgeFunction, getClient, getUserId } from "./supabase.js";
-import { EVENT_TO_STATUS, reconcile, type Evidence, type PipelineApp } from "./reconcile.js";
+import { EVENT_TO_STATUS, pickStepToSchedule, reconcile, type Evidence, type PipelineApp } from "./reconcile.js";
 
 const APPLICATION_STATUSES = ["saved", "applied", "interviewing", "offer", "closed", "rejected"] as const;
+const INTERVIEW_STEP_FORMATS = ["phone", "video_live", "take_home", "onsite", "other"] as const;
+const INTERVIEW_STEP_STATUSES = ["pending_schedule", "scheduled", "completed", "cancelled"] as const;
 
 const server = new McpServer({ name: "jobapp", version: "0.1.0" });
 
@@ -89,8 +91,14 @@ server.registerTool(
     const supa = await getClient();
     let q = supa
       .from("applications")
-      .select("id, status, applied_at, notes, next_step, archived_at, needs_review, updated_at, jobs(id, title, company, location, match_score, url)")
-      .order("updated_at", { ascending: false });
+      .select(
+        `id, status, applied_at, notes, next_step, archived_at, needs_review, updated_at,
+         jobs(id, title, company, location, match_score, url),
+         interview_steps(id, round_number, sequence_in_round, title, format, duration_minutes, interviewer, scheduled_at, status, notes)`
+      )
+      .order("updated_at", { ascending: false })
+      .order("round_number", { referencedTable: "interview_steps", ascending: true })
+      .order("sequence_in_round", { referencedTable: "interview_steps", ascending: true });
     if (!include_archived) q = q.is("archived_at", null);
     if (!include_review) q = q.eq("needs_review", false);
     const { data, error } = await q;
@@ -294,6 +302,95 @@ server.registerTool(
   })
 );
 
+// ---------- Interview lifecycle steps ----------
+
+server.registerTool(
+  "add_interview_step",
+  {
+    title: "Add an interview step",
+    description:
+      "Record one step of an application's interview loop — a round can be a single step or several " +
+      "(e.g. a round with both a live case interview and a take-home presentation is round_number 2, " +
+      "sequence_in_round 1 and 2). Use this for anything a recruiter tells you verbally or by scheduling " +
+      "link, not just what shows up in Gmail — that's the main reason this exists as a separate manual tool. " +
+      "Leave scheduled_at unset until an actual date/time is known; status stays 'pending_schedule' until then.",
+    inputSchema: {
+      application_id: z.string().uuid(),
+      round_number: z.number().int().positive(),
+      sequence_in_round: z.number().int().positive().default(1),
+      title: z.string().min(1).describe("e.g. 'Mini case + behavioral', 'Live case interview', 'Take-home case presentation'"),
+      format: z.enum(INTERVIEW_STEP_FORMATS).optional(),
+      duration_minutes: z.number().int().positive().optional(),
+      interviewer: z.string().optional().describe("Name or role, e.g. 'Managing Director'"),
+      scheduled_at: z.string().datetime().optional(),
+      status: z.enum(INTERVIEW_STEP_STATUSES).default("pending_schedule"),
+      notes: z.string().optional(),
+    },
+  },
+  wrap(async ({ application_id, ...step }) => {
+    const supa = await getClient();
+    const userId = await getUserId();
+    const { data, error } = await supa
+      .from("interview_steps")
+      .insert({ user_id: userId, application_id, last_actor: "claude", ...step })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return ok(data);
+  })
+);
+
+server.registerTool(
+  "update_interview_step",
+  {
+    title: "Update an interview step",
+    description: "Reschedule, mark completed/cancelled, or annotate an existing interview step.",
+    inputSchema: {
+      interview_step_id: z.string().uuid(),
+      scheduled_at: z.string().datetime().optional(),
+      status: z.enum(INTERVIEW_STEP_STATUSES).optional(),
+      interviewer: z.string().optional(),
+      notes: z.string().optional(),
+    },
+  },
+  wrap(async ({ interview_step_id, ...fields }) => {
+    const supa = await getClient();
+    const patch: Record<string, unknown> = { last_actor: "claude" };
+    for (const [key, value] of Object.entries(fields)) if (value !== undefined) patch[key] = value;
+    if (Object.keys(patch).length === 1) {
+      throw new Error("Nothing to update — pass scheduled_at, status, interviewer, or notes.");
+    }
+    const { data, error } = await supa
+      .from("interview_steps")
+      .update(patch)
+      .eq("id", interview_step_id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return ok(data);
+  })
+);
+
+server.registerTool(
+  "delete_interview_step",
+  {
+    title: "Delete an interview step",
+    description: "Remove a step that was added by mistake. To record a step that was called off, prefer update_interview_step with status='cancelled' instead — it keeps the history.",
+    inputSchema: { interview_step_id: z.string().uuid() },
+  },
+  wrap(async ({ interview_step_id }) => {
+    const supa = await getClient();
+    await supa.from("interview_steps").update({ last_actor: "claude" }).eq("id", interview_step_id);
+    const { error, count } = await supa
+      .from("interview_steps")
+      .delete({ count: "exact" })
+      .eq("id", interview_step_id);
+    if (error) throw new Error(error.message);
+    if (!count) throw new Error(`No interview step found with id ${interview_step_id}.`);
+    return ok({ deleted: interview_step_id });
+  })
+);
+
 // ---------- Inbox reconciliation (Claude scans Gmail in-session, this tool matches & applies) ----------
 
 const EvidenceSchema = z.object({
@@ -306,6 +403,14 @@ const EvidenceSchema = z.object({
   email_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Date of the email, YYYY-MM-DD"),
   subject: z.string().optional().describe("Email subject line — recorded in the application notes as an audit trail"),
   gmail_thread_id: z.string().optional(),
+  interview_step_scheduled_at: z.string().datetime().optional().describe(
+    "Set when this email confirms/reschedules a specific interview step (e.g. a calendar invite or " +
+    "'your interview is confirmed for...'), as opposed to just being a generic interview-stage signal. " +
+    "When set, the tool advances the application's earliest still-pending interview step to 'scheduled' at this time."
+  ),
+  interview_step_round: z.number().int().positive().optional().describe(
+    "Only if the email states which round it's for — otherwise the earliest pending step is assumed."
+  ),
 });
 
 server.registerTool(
@@ -329,7 +434,12 @@ server.registerTool(
       "show them the unmatched list and only add_job the ones they explicitly say to add. If you're running " +
       "unattended (a scheduled/autonomous session with no user to ask), call add_job with needs_review=true for " +
       "each unmatched entry that plausibly represents a real application — this routes it to the app's Needs " +
-      "Review queue, hidden from the live board, instead of guessing on the user's behalf.",
+      "Review queue, hidden from the live board, instead of guessing on the user's behalf. " +
+      "If an application has interview_steps recorded (e.g. added manually via add_interview_step from a recruiter " +
+      "call) and an evidence entry sets interview_step_scheduled_at, the tool also advances that application's " +
+      "earliest still-pending step to 'scheduled' — reported under interview_step_matches, applied only when " +
+      "apply=true. This never invents steps: an application with no pending interview_steps is left alone (only " +
+      "its status moves, as before) since email alone can't reliably reconstruct a whole interview loop.",
     inputSchema: {
       evidence: z.array(EvidenceSchema).min(1),
       apply: z.boolean().default(false).describe("false = dry-run report only; true = apply the proposed status updates"),
@@ -339,7 +449,10 @@ server.registerTool(
     const supa = await getClient();
     const { data, error } = await supa
       .from("applications")
-      .select("id, status, applied_at, notes, updated_at, jobs(id, title, company)")
+      .select(
+        `id, status, applied_at, notes, updated_at, jobs(id, title, company),
+         interview_steps(id, round_number, sequence_in_round, title, status)`
+      )
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
 
@@ -350,11 +463,23 @@ server.registerTool(
       notes: a.notes as string | null,
       updated_at: a.updated_at as string,
       job: (Array.isArray(a.jobs) ? a.jobs[0] : a.jobs) as PipelineApp["job"],
+      interview_steps: (a.interview_steps ?? undefined) as PipelineApp["interview_steps"],
     }));
 
     const report = reconcile(apps, evidence as Evidence[]);
 
-    if (!apply) return ok({ mode: "dry_run", ...report });
+    // Evidence that confirms a specific interview step, resolved against the app it
+    // matched to (proposals + in_sync — a second scheduling email for an app already
+    // 'interviewing' shows up as in_sync on status but still needs a step advanced).
+    const stepMatches = [...report.proposals, ...report.in_sync]
+      .filter(m => m.evidence.interview_step_scheduled_at)
+      .map(m => {
+        const app = apps.find(a => a.id === m.application_id)!;
+        const step = pickStepToSchedule(app.interview_steps, m.evidence.interview_step_round);
+        return { application_id: m.application_id, company: m.company, evidence: m.evidence, matched_step: step ?? null };
+      });
+
+    if (!apply) return ok({ mode: "dry_run", ...report, interview_step_matches: stepMatches });
 
     const applied: unknown[] = [];
     for (const p of report.proposals) {
@@ -374,7 +499,21 @@ server.registerTool(
       if (upErr) throw new Error(`Applied ${applied.length}/${report.proposals.length}, then failed on ${p.company}: ${upErr.message}`);
       applied.push({ ...p, result: updated });
     }
-    return ok({ mode: "applied", applied, ...report, proposals: undefined });
+
+    const stepsAdvanced: unknown[] = [];
+    for (const m of stepMatches) {
+      if (!m.matched_step) continue;
+      const { data: updated, error: stepErr } = await supa
+        .from("interview_steps")
+        .update({ scheduled_at: m.evidence.interview_step_scheduled_at, status: "scheduled", source: "gmail_reconcile", last_actor: "claude" })
+        .eq("id", m.matched_step.id)
+        .select()
+        .single();
+      if (stepErr) throw new Error(`Applied application updates, then failed advancing interview step for ${m.company}: ${stepErr.message}`);
+      stepsAdvanced.push({ application_id: m.application_id, company: m.company, result: updated });
+    }
+
+    return ok({ mode: "applied", applied, interview_steps_advanced: stepsAdvanced, ...report, proposals: undefined });
   })
 );
 
