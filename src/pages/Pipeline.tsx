@@ -66,6 +66,8 @@ function AppCard({
   const dateLabel = app.applied_at
     ? relativeDate(app.applied_at)
     : relativeDate(app.created_at)
+  const steps = app.interview_steps
+  const stepsDone = steps?.filter((s) => s.status === 'completed').length ?? 0
 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
@@ -89,6 +91,11 @@ function AppCard({
       {(job?.company || job?.location) && (
         <span className="app-card-company">
           {[job.company, job.location].filter(Boolean).join(' · ')}
+        </span>
+      )}
+      {!!steps?.length && (
+        <span className="app-card-steps" title="Interview steps completed">
+          {stepsDone}/{steps.length} steps
         </span>
       )}
       <div className="app-card-footer">
@@ -243,7 +250,7 @@ export function Pipeline() {
       let [appsResult, resumeResult] = await Promise.all([
         supabase
           .from('applications')
-          .select('*, job:jobs!job_id(*)')
+          .select('*, job:jobs!job_id(*), interview_steps(id, status)')
           .eq('user_id', user.id)
           .is('archived_at', null)
           .eq('needs_review', false)
@@ -306,7 +313,7 @@ export function Pipeline() {
             } else {
               const { data } = await supabase
                 .from('applications')
-                .select('*, job:jobs!job_id(*)')
+                .select('*, job:jobs!job_id(*), interview_steps(id, status)')
                 .eq('id', (payload.new as { id: string }).id)
                 .single()
               if (data) {
@@ -848,6 +855,18 @@ export function Pipeline() {
           font-size: 12px;
           color: rgba(242,240,234,0.45);
           display: block;
+          margin-bottom: 8px;
+        }
+        .app-card-steps {
+          font-size: 11px;
+          font-family: "DM Mono", monospace;
+          color: var(--color-secondary);
+          background: rgba(255,193,99,0.08);
+          border: 1px solid rgba(255,193,99,0.25);
+          border-radius: 20px;
+          padding: 2px 8px;
+          display: inline-block;
+          width: fit-content;
           margin-bottom: 8px;
         }
         .app-card-footer {

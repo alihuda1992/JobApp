@@ -73,6 +73,21 @@ export interface Job {
   created_at: string
 }
 
+export interface InterviewStep {
+  id: string
+  application_id: string
+  round_number: number
+  sequence_in_round: number
+  title: string
+  format: 'phone' | 'video_live' | 'take_home' | 'onsite' | 'other' | null
+  duration_minutes: number | null
+  interviewer: string | null
+  scheduled_at: string | null
+  status: 'pending_schedule' | 'scheduled' | 'completed' | 'cancelled'
+  source: 'manual' | 'gmail_reconcile'
+  notes: string | null
+}
+
 export interface Application {
   id: string
   user_id: string
@@ -87,6 +102,7 @@ export interface Application {
   created_at: string
   updated_at: string
   job?: Job
+  interview_steps?: InterviewStep[]
 }
 
 export type ActivityAction =

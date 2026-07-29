@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/useAppStore'
-import type { Job } from '@/types'
+import type { Job, InterviewStep } from '@/types'
 
 type AppStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'closed' | 'rejected'
+type StepFormat = NonNullable<InterviewStep['format']>
+type StepStatus = InterviewStep['status']
 
 const STATUS_OPTIONS: { value: AppStatus; label: string }[] = [
   { value: 'saved', label: 'Saved' },
@@ -14,6 +16,33 @@ const STATUS_OPTIONS: { value: AppStatus; label: string }[] = [
   { value: 'closed', label: 'Closed' },
   { value: 'rejected', label: 'Rejected' },
 ]
+
+const STEP_STATUS_OPTIONS: { value: StepStatus; label: string }[] = [
+  { value: 'pending_schedule', label: 'Pending schedule' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+]
+
+const STEP_FORMAT_OPTIONS: { value: StepFormat; label: string }[] = [
+  { value: 'phone', label: 'Phone' },
+  { value: 'video_live', label: 'Video (live)' },
+  { value: 'take_home', label: 'Take-home' },
+  { value: 'onsite', label: 'Onsite' },
+  { value: 'other', label: 'Other' },
+]
+
+const STEP_FORMAT_LABEL: Record<StepFormat, string> = {
+  phone: 'Phone', video_live: 'Video', take_home: 'Take-home', onsite: 'Onsite', other: 'Other',
+}
+
+function toDatetimeLocalValue(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 interface AppFields {
   id: string
@@ -64,6 +93,15 @@ export function JobDetail() {
   const [savingApp, setSavingApp] = useState(false)
   const [removing, setRemoving] = useState(false)
 
+  const [interviewSteps, setInterviewSteps] = useState<InterviewStep[]>([])
+  const [addingStep, setAddingStep] = useState(false)
+  const [stepTitleDraft, setStepTitleDraft] = useState('')
+  const [stepRoundDraft, setStepRoundDraft] = useState(1)
+  const [stepFormatDraft, setStepFormatDraft] = useState<StepFormat | ''>('')
+  const [stepDurationDraft, setStepDurationDraft] = useState('')
+  const [stepInterviewerDraft, setStepInterviewerDraft] = useState('')
+  const [savingNewStep, setSavingNewStep] = useState(false)
+
   const [editingJob, setEditingJob] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const [companyDraft, setCompanyDraft] = useState('')
@@ -107,11 +145,77 @@ export function JobDetail() {
         setStatusDraft(a.status)
         setNotesDraft(a.notes ?? '')
         setNextStepDraft(a.next_step ?? '')
+        loadInterviewSteps(a.id)
       } else {
         setApplication(null)
+        setInterviewSteps([])
       }
     }
     setLoading(false)
+  }
+
+  async function loadInterviewSteps(applicationId: string) {
+    const { data } = await supabase
+      .from('interview_steps')
+      .select('id, application_id, round_number, sequence_in_round, title, format, duration_minutes, interviewer, scheduled_at, status, source, notes')
+      .eq('application_id', applicationId)
+      .order('round_number', { ascending: true })
+      .order('sequence_in_round', { ascending: true })
+    setInterviewSteps((data as InterviewStep[]) ?? [])
+  }
+
+  async function updateStep(stepId: string, patch: Record<string, unknown>) {
+    setInterviewSteps((prev) => prev.map((s) => (s.id === stepId ? ({ ...s, ...patch } as InterviewStep) : s)))
+    await supabase.from('interview_steps').update({ ...patch, last_actor: 'user' }).eq('id', stepId)
+  }
+
+  async function deleteStep(stepId: string) {
+    setInterviewSteps((prev) => prev.filter((s) => s.id !== stepId))
+    await supabase.from('interview_steps').update({ last_actor: 'user' }).eq('id', stepId)
+    await supabase.from('interview_steps').delete().eq('id', stepId)
+  }
+
+  function openAddStep() {
+    setStepRoundDraft(interviewSteps.length ? Math.max(...interviewSteps.map((s) => s.round_number)) : 1)
+    setStepTitleDraft('')
+    setStepFormatDraft('')
+    setStepDurationDraft('')
+    setStepInterviewerDraft('')
+    setAddingStep(true)
+  }
+
+  async function submitNewStep() {
+    if (!application || !stepTitleDraft.trim() || savingNewStep) return
+    setSavingNewStep(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSavingNewStep(false); return }
+    const sequence = interviewSteps.filter((s) => s.round_number === stepRoundDraft).length + 1
+    const { data, error } = await supabase
+      .from('interview_steps')
+      .insert({
+        user_id: user.id,
+        application_id: application.id,
+        round_number: stepRoundDraft,
+        sequence_in_round: sequence,
+        title: stepTitleDraft.trim(),
+        format: stepFormatDraft || null,
+        duration_minutes: stepDurationDraft ? Number(stepDurationDraft) : null,
+        interviewer: stepInterviewerDraft.trim() || null,
+        status: 'pending_schedule',
+        source: 'manual',
+        last_actor: 'user',
+      })
+      .select()
+      .single()
+    if (!error && data) {
+      setInterviewSteps((prev) =>
+        [...prev, data as InterviewStep].sort(
+          (a, b) => a.round_number - b.round_number || a.sequence_in_round - b.sequence_in_round
+        )
+      )
+      setAddingStep(false)
+    }
+    setSavingNewStep(false)
   }
 
   const appDirty =
@@ -151,6 +255,7 @@ export function JobDetail() {
     await supabase.from('applications').delete().eq('id', application.id)
     setApplication(null)
     setInPipeline(false)
+    setInterviewSteps([])
     setRemoving(false)
   }
 
@@ -238,6 +343,7 @@ export function JobDetail() {
       setStatusDraft(a.status)
       setNotesDraft(a.notes ?? '')
       setNextStepDraft(a.next_step ?? '')
+      setInterviewSteps([])
     }
     setSaving(false)
   }
@@ -430,6 +536,149 @@ export function JobDetail() {
                 <button className="btn btn-ghost jd-danger jd-remove-btn" onClick={removeFromPipeline} disabled={removing}>
                   {removing ? 'Removing…' : 'Remove from Pipeline'}
                 </button>
+              </div>
+            )}
+
+            {application && (
+              <div className="jd-steps">
+                <div className="jd-steps-header">
+                  <span className="jd-field-label" style={{ marginTop: 0 }}>Interview Steps</span>
+                  {!!interviewSteps.length && (
+                    <span className="jd-steps-progress">
+                      {interviewSteps.filter((s) => s.status === 'completed').length}/{interviewSteps.length}
+                    </span>
+                  )}
+                </div>
+
+                {Object.entries(
+                  interviewSteps.reduce<Record<number, InterviewStep[]>>((acc, s) => {
+                    (acc[s.round_number] ??= []).push(s)
+                    return acc
+                  }, {})
+                )
+                  .map(([round, steps]) => [Number(round), steps] as [number, InterviewStep[]])
+                  .sort((a, b) => a[0] - b[0])
+                  .map(([round, steps]) => (
+                    <div className="jd-round" key={round}>
+                      <div className="jd-round-label">Round {round}</div>
+                      {steps.map((step) => (
+                        <div className="jd-step-row" key={step.id}>
+                          <div className="jd-step-main">
+                            <span className="jd-step-title">{step.title}</span>
+                            <button className="jd-step-del" onClick={() => deleteStep(step.id)} title="Delete step">×</button>
+                          </div>
+                          {(step.format || step.duration_minutes) && (
+                            <div className="jd-step-chips">
+                              {step.format && <span className="jd-step-chip">{STEP_FORMAT_LABEL[step.format]}</span>}
+                              {step.duration_minutes && <span className="jd-step-chip">{step.duration_minutes} min</span>}
+                            </div>
+                          )}
+
+                          <select
+                            className="jd-step-select"
+                            value={step.status}
+                            onChange={(e) => updateStep(step.id, { status: e.target.value })}
+                          >
+                            {STEP_STATUS_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </select>
+
+                          <input
+                            type="datetime-local"
+                            className="jd-step-input"
+                            value={toDatetimeLocalValue(step.scheduled_at)}
+                            onChange={(e) =>
+                              updateStep(step.id, {
+                                scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : null,
+                              })
+                            }
+                          />
+
+                          <input
+                            className="jd-step-input"
+                            placeholder="Interviewer"
+                            defaultValue={step.interviewer ?? ''}
+                            onBlur={(e) => {
+                              if (e.target.value !== (step.interviewer ?? '')) {
+                                updateStep(step.id, { interviewer: e.target.value || null })
+                              }
+                            }}
+                          />
+
+                          <textarea
+                            className="jd-step-textarea"
+                            placeholder="Notes…"
+                            defaultValue={step.notes ?? ''}
+                            rows={2}
+                            onBlur={(e) => {
+                              if (e.target.value !== (step.notes ?? '')) {
+                                updateStep(step.id, { notes: e.target.value || null })
+                              }
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                {addingStep ? (
+                  <div className="jd-step-add-form">
+                    <input
+                      className="jd-edit-input"
+                      placeholder="Step title (e.g. Live case interview)"
+                      value={stepTitleDraft}
+                      onChange={(e) => setStepTitleDraft(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="jd-step-add-row">
+                      <input
+                        type="number"
+                        min={1}
+                        className="jd-step-input jd-step-input--num"
+                        placeholder="Round"
+                        value={stepRoundDraft}
+                        onChange={(e) => setStepRoundDraft(Number(e.target.value) || 1)}
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        className="jd-step-input jd-step-input--num"
+                        placeholder="Min"
+                        value={stepDurationDraft}
+                        onChange={(e) => setStepDurationDraft(e.target.value)}
+                      />
+                    </div>
+                    <select
+                      className="jd-step-select"
+                      value={stepFormatDraft}
+                      onChange={(e) => setStepFormatDraft(e.target.value as StepFormat | '')}
+                    >
+                      <option value="">Format…</option>
+                      {STEP_FORMAT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    <input
+                      className="jd-edit-input"
+                      placeholder="Interviewer (optional)"
+                      value={stepInterviewerDraft}
+                      onChange={(e) => setStepInterviewerDraft(e.target.value)}
+                    />
+                    <div className="jd-edit-actions">
+                      <button
+                        className="btn btn-primary"
+                        onClick={submitNewStep}
+                        disabled={!stepTitleDraft.trim() || savingNewStep}
+                      >
+                        {savingNewStep ? 'Adding…' : 'Add step'}
+                      </button>
+                      <button className="btn btn-ghost" onClick={() => setAddingStep(false)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button className="btn btn-ghost jd-step-add-btn" onClick={openAddStep}>+ Add step</button>
+                )}
               </div>
             )}
 
@@ -649,6 +898,51 @@ export function JobDetail() {
         }
         .jd-review-actions { display: flex; gap: 8px; }
         .jd-review-actions .btn { flex: 1; font-size: 12px; padding: 6px 10px; }
+
+        /* Interview steps */
+        .jd-steps {
+          display: flex; flex-direction: column; gap: 10px;
+          padding: 12px 0 4px; margin-top: 2px;
+          border-top: 1px solid var(--color-border);
+        }
+        .jd-steps-header { display: flex; align-items: center; justify-content: space-between; }
+        .jd-steps-progress {
+          font-size: 12px; font-family: "DM Mono", monospace; color: var(--color-secondary);
+        }
+        .jd-round { display: flex; flex-direction: column; gap: 8px; }
+        .jd-round-label {
+          font-size: 11px; font-weight: 600; text-transform: uppercase;
+          letter-spacing: 0.4px; color: rgba(242,240,234,0.4);
+        }
+        .jd-step-row {
+          display: flex; flex-direction: column; gap: 6px;
+          background: rgba(255,255,255,0.03); border: 1px solid var(--color-border);
+          border-radius: var(--radius-btn); padding: 10px;
+        }
+        .jd-step-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+        .jd-step-title { font-size: 13px; font-weight: 600; line-height: 1.35; }
+        .jd-step-del {
+          background: none; border: none; color: rgba(242,240,234,0.25);
+          font-size: 15px; line-height: 1; cursor: pointer; flex-shrink: 0; padding: 0;
+        }
+        .jd-step-del:hover { color: oklch(65% 0.18 25); }
+        .jd-step-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+        .jd-step-chip {
+          font-size: 11px; color: rgba(242,240,234,0.55);
+          background: rgba(255,255,255,0.05); border: 1px solid var(--color-border);
+          border-radius: 20px; padding: 2px 8px;
+        }
+        .jd-step-select, .jd-step-input, .jd-step-textarea {
+          width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.03);
+          border: 1px solid var(--color-border); border-radius: var(--radius-btn);
+          color: var(--color-text); font-size: 12px; padding: 6px 8px; font-family: inherit;
+          resize: vertical;
+        }
+        .jd-step-textarea { resize: vertical; }
+        .jd-step-add-row { display: flex; gap: 6px; }
+        .jd-step-input--num { min-width: 0; }
+        .jd-step-add-form { display: flex; flex-direction: column; gap: 6px; }
+        .jd-step-add-btn { width: 100%; font-size: 12px; padding: 7px; }
       `}</style>
     </div>
   )
