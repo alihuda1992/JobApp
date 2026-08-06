@@ -81,7 +81,9 @@ server.registerTool(
     description:
       "List all applications in the kanban pipeline with their job details, grouped by status (saved, applied, interviewing, offer, closed, rejected). " +
       "Archived applications (terminal cards auto-archived after 30 days) are excluded unless include_archived is true. Applications awaiting the " +
-      "user's review (needs_review=true — added from inferred/uncertain evidence, not yet approved onto the board) are excluded unless include_review is true.",
+      "user's review (needs_review=true — added from inferred/uncertain evidence, not yet approved onto the board) are excluded unless include_review is true. " +
+      "Each application embeds application_notes (newest first) — that's the timeline, not a flat notes field. The current 'next step' is the most " +
+      "recent entry with source='next_step'; everything else is a general update.",
     inputSchema: {
       include_archived: z.boolean().default(false).describe("Also return archived applications"),
       include_review: z.boolean().default(false).describe("Also return applications still pending in the Needs Review queue"),
@@ -92,13 +94,15 @@ server.registerTool(
     let q = supa
       .from("applications")
       .select(
-        `id, status, applied_at, notes, next_step, archived_at, needs_review, updated_at,
+        `id, status, applied_at, archived_at, needs_review, updated_at,
          jobs(id, title, company, location, match_score, url),
-         interview_steps(id, round_number, sequence_in_round, title, format, duration_minutes, interviewer, scheduled_at, status, notes)`
+         interview_steps(id, round_number, sequence_in_round, title, format, duration_minutes, interviewer, scheduled_at, status, notes),
+         application_notes(id, body, actor, source, created_at)`
       )
       .order("updated_at", { ascending: false })
       .order("round_number", { referencedTable: "interview_steps", ascending: true })
-      .order("sequence_in_round", { referencedTable: "interview_steps", ascending: true });
+      .order("sequence_in_round", { referencedTable: "interview_steps", ascending: true })
+      .order("created_at", { referencedTable: "application_notes", ascending: false });
     if (!include_archived) q = q.is("archived_at", null);
     if (!include_review) q = q.eq("needs_review", false);
     const { data, error } = await q;
@@ -222,7 +226,7 @@ server.registerTool(
     inputSchema: {
       job_id: z.string().uuid(),
       status: z.enum(APPLICATION_STATUSES).default("saved"),
-      notes: z.string().optional(),
+      notes: z.string().optional().describe("Optional first update, e.g. why this was added — saved as its own note block, not a flat field"),
       needs_review: z.boolean().default(false).describe("true = inferred, not user-confirmed — goes to the Needs Review queue"),
     },
   },
@@ -235,7 +239,6 @@ server.registerTool(
         user_id: userId,
         job_id,
         status: status ?? "saved",
-        notes,
         applied_at: status === "applied" ? new Date().toISOString() : null,
         last_actor: "claude",
         needs_review: needs_review ?? false,
@@ -243,6 +246,9 @@ server.registerTool(
       .select()
       .single();
     if (error) throw new Error(error.message);
+    if (notes) {
+      await supa.from("application_notes").insert({ user_id: userId, application_id: data.id, body: notes, actor: "claude" });
+    }
     return ok(data);
   })
 );
@@ -252,29 +258,60 @@ server.registerTool(
   {
     title: "Update application",
     description:
-      "Update a pipeline application: move it to a new status (kanban stage), set notes / next step, or archive/unarchive it. Moving to 'applied' stamps applied_at automatically.",
+      "Update a pipeline application: move it to a new status (kanban stage) or archive/unarchive it. Moving to " +
+      "'applied' stamps applied_at automatically. To log an update (a call, an email, a decision) or set the " +
+      "'next step', use add_application_note instead — see its description for the source='next_step' convention.",
     inputSchema: {
       application_id: z.string().uuid(),
       status: z.enum(APPLICATION_STATUSES).optional(),
-      notes: z.string().optional(),
-      next_step: z.string().optional(),
       archived: z.boolean().optional().describe("true = archive (hide from the board), false = restore"),
     },
   },
-  wrap(async ({ application_id, status, notes, next_step, archived }) => {
+  wrap(async ({ application_id, status, archived }) => {
     const supa = await getClient();
     const patch: Record<string, unknown> = {};
     if (status !== undefined) patch.status = status;
-    if (notes !== undefined) patch.notes = notes;
-    if (next_step !== undefined) patch.next_step = next_step;
     if (archived !== undefined) patch.archived_at = archived ? new Date().toISOString() : null;
-    if (!Object.keys(patch).length) throw new Error("Nothing to update — pass status, notes, next_step, or archived.");
+    if (!Object.keys(patch).length) throw new Error("Nothing to update — pass status or archived.");
     patch.last_actor = "claude";
     if (status === "applied") {
       const { data: existing } = await supa.from("applications").select("applied_at").eq("id", application_id).single();
       if (!existing?.applied_at) patch.applied_at = new Date().toISOString();
     }
     const { data, error } = await supa.from("applications").update(patch).eq("id", application_id).select().single();
+    if (error) throw new Error(error.message);
+    return ok(data);
+  })
+);
+
+server.registerTool(
+  "add_application_note",
+  {
+    title: "Add a note to an application",
+    description:
+      "Log one distinct update on a pipeline application's timeline — a call, an email, a status change reason, " +
+      "a file saved. Each call adds its own block (with actor + timestamp), it never overwrites or appends to a " +
+      "prior note. This is the only way to write notes now — update_application no longer has a notes field. " +
+      "Pass source='next_step' to set what the app shows as the pinned 'Next step' (e.g. 'Recruiting screen " +
+      "Thursday 4pm ET') — the most recent note with that source is the current one; there's no separate field " +
+      "for it anymore, so use a plain call (no source) for a general update instead.",
+    inputSchema: {
+      application_id: z.string().uuid(),
+      body: z.string().min(1),
+      source: z.string().optional().describe(
+        "Optional short label. 'next_step' pins this as the current next step. Other free-form labels " +
+        "(e.g. 'gmail_reconcile', 'tailored_resume') just tag the entry — omit for a plain update."
+      ),
+    },
+  },
+  wrap(async ({ application_id, body, source }) => {
+    const supa = await getClient();
+    const userId = await getUserId();
+    const { data, error } = await supa
+      .from("application_notes")
+      .insert({ user_id: userId, application_id, body, actor: "claude", source })
+      .select()
+      .single();
     if (error) throw new Error(error.message);
     return ok(data);
   })
@@ -401,7 +438,7 @@ const EvidenceSchema = z.object({
     "What the email signals: applied (application received/submitted), interview (interview invite or scheduling), offer, rejected, closed (role withdrawn/filled)"
   ),
   email_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Date of the email, YYYY-MM-DD"),
-  subject: z.string().optional().describe("Email subject line — recorded in the application notes as an audit trail"),
+  subject: z.string().optional().describe("Email subject line — recorded as its own note block for the audit trail"),
   gmail_thread_id: z.string().optional(),
   interview_step_scheduled_at: z.string().datetime().optional().describe(
     "Set when this email confirms/reschedules a specific interview step (e.g. a calendar invite or " +
@@ -427,7 +464,7 @@ server.registerTool(
       "conflicts (terminal application contradicted by email — review manually), ambiguous (multiple matching " +
       "applications), and unmatched (emails with no pipeline entry — possibly missed applications). Call with " +
       "apply=false first and show the user the report; call again with apply=true to write the proposed status " +
-      "updates (stamps applied_at, appends an audit note with the email subject/date) — this only ever updates " +
+      "updates (stamps applied_at, logs a distinct note block with the email subject/date) — this only ever updates " +
       "applications that already exist, so it's safe to auto-apply. " +
       "unmatched entries are different: they are not yet confirmed to be real, distinct applications. NEVER call " +
       "add_job for one with needs_review left at its default (false). If there's a live user in this conversation, " +
@@ -447,10 +484,11 @@ server.registerTool(
   },
   wrap(async ({ evidence, apply }) => {
     const supa = await getClient();
+    const userId = await getUserId();
     const { data, error } = await supa
       .from("applications")
       .select(
-        `id, status, applied_at, notes, updated_at, jobs(id, title, company),
+        `id, status, applied_at, updated_at, jobs(id, title, company),
          interview_steps(id, round_number, sequence_in_round, title, status)`
       )
       .order("updated_at", { ascending: false });
@@ -460,7 +498,6 @@ server.registerTool(
       id: a.id as string,
       status: a.status as string,
       applied_at: a.applied_at as string | null,
-      notes: a.notes as string | null,
       updated_at: a.updated_at as string,
       job: (Array.isArray(a.jobs) ? a.jobs[0] : a.jobs) as PipelineApp["job"],
       interview_steps: (a.interview_steps ?? undefined) as PipelineApp["interview_steps"],
@@ -488,8 +525,6 @@ server.registerTool(
       if (p.to_status === "applied" && !app.applied_at) {
         patch.applied_at = `${p.evidence.email_date}T00:00:00Z`;
       }
-      const line = `Gmail reconcile ${p.evidence.email_date}: ${p.evidence.subject ?? p.evidence.event} → ${p.to_status}`;
-      patch.notes = app.notes ? `${app.notes}\n${line}` : line;
       const { data: updated, error: upErr } = await supa
         .from("applications")
         .update(patch)
@@ -497,6 +532,10 @@ server.registerTool(
         .select("id, status, applied_at")
         .single();
       if (upErr) throw new Error(`Applied ${applied.length}/${report.proposals.length}, then failed on ${p.company}: ${upErr.message}`);
+      const line = `Gmail reconcile ${p.evidence.email_date}: ${p.evidence.subject ?? p.evidence.event} → ${p.to_status}`;
+      await supa.from("application_notes").insert({
+        user_id: userId, application_id: p.application_id, body: line, actor: "claude", source: "gmail_reconcile",
+      });
       applied.push({ ...p, result: updated });
     }
 
@@ -675,22 +714,21 @@ server.registerTool(
     let application: unknown = null;
     if (job_id) {
       const supa = await getClient();
+      const userId = await getUserId();
       const { data: apps } = await supa
         .from("applications")
-        .select("id, notes")
+        .select("id")
         .eq("job_id", job_id)
         .order("updated_at", { ascending: false })
         .limit(1);
       if (apps?.length) {
         const line = `Tailored resume: ${name} (${new Date().toISOString().slice(0, 10)})`;
-        const notes = apps[0].notes ? `${apps[0].notes}\n${line}` : line;
         const { data, error } = await supa
-          .from("applications")
-          .update({ notes, last_actor: "claude" })
-          .eq("id", apps[0].id)
-          .select("id, notes")
+          .from("application_notes")
+          .insert({ user_id: userId, application_id: apps[0].id, body: line, actor: "claude", source: "tailored_resume" })
+          .select()
           .single();
-        if (error) throw new Error(`File saved, but updating pipeline note failed: ${error.message}`);
+        if (error) throw new Error(`File saved, but logging the pipeline note failed: ${error.message}`);
         application = data;
       }
     }
@@ -750,22 +788,21 @@ server.registerTool(
     let application: unknown = null;
     if (job_id) {
       const supa = await getClient();
+      const userId = await getUserId();
       const { data: apps } = await supa
         .from("applications")
-        .select("id, notes")
+        .select("id")
         .eq("job_id", job_id)
         .order("updated_at", { ascending: false })
         .limit(1);
       if (apps?.length) {
         const line = `Tailored resume: ${name} (${new Date().toISOString().slice(0, 10)})`;
-        const notes = apps[0].notes ? `${apps[0].notes}\n${line}` : line;
         const { data, error } = await supa
-          .from("applications")
-          .update({ notes, last_actor: "claude" })
-          .eq("id", apps[0].id)
-          .select("id, notes")
+          .from("application_notes")
+          .insert({ user_id: userId, application_id: apps[0].id, body: line, actor: "claude", source: "tailored_resume" })
+          .select()
           .single();
-        if (error) throw new Error(`Files saved, but updating the application note failed: ${error.message}`);
+        if (error) throw new Error(`Files saved, but logging the application note failed: ${error.message}`);
         application = data;
       }
     }

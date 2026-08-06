@@ -2,7 +2,14 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/useAppStore'
-import type { Job, InterviewStep } from '@/types'
+import { timeAgo } from '@/lib/utils'
+import type { Job, InterviewStep, ApplicationNote } from '@/types'
+
+const NOTE_ACTOR_LABEL: Record<string, string> = {
+  claude: '✦ Claude',
+  user: 'You',
+  system: 'Auto',
+}
 
 type AppStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'closed' | 'rejected'
 type StepFormat = NonNullable<InterviewStep['format']>
@@ -47,8 +54,6 @@ function toDatetimeLocalValue(iso: string | null): string {
 interface AppFields {
   id: string
   status: AppStatus
-  notes: string | null
-  next_step: string | null
   applied_at: string | null
   archived_at: string | null
   needs_review: boolean
@@ -88,10 +93,14 @@ export function JobDetail() {
 
   const [application, setApplication] = useState<AppFields | null>(null)
   const [statusDraft, setStatusDraft] = useState<AppStatus>('saved')
-  const [notesDraft, setNotesDraft] = useState('')
-  const [nextStepDraft, setNextStepDraft] = useState('')
   const [savingApp, setSavingApp] = useState(false)
   const [removing, setRemoving] = useState(false)
+
+  const [notes, setNotes] = useState<ApplicationNote[]>([])
+  const [newNoteDraft, setNewNoteDraft] = useState('')
+  const [addingNote, setAddingNote] = useState(false)
+  const [nextStepDraft, setNextStepDraft] = useState('')
+  const [savingNextStep, setSavingNextStep] = useState(false)
 
   const [interviewSteps, setInterviewSteps] = useState<InterviewStep[]>([])
   const [addingStep, setAddingStep] = useState(false)
@@ -117,6 +126,23 @@ export function JobDetail() {
     loadJob(id)
   }, [id])
 
+  // Live-append notes written elsewhere (e.g. Claude via the MCP server) while this page is open
+  useEffect(() => {
+    if (!application?.id) return
+    const channel = supabase
+      .channel(`application-notes-${application.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'application_notes', filter: `application_id=eq.${application.id}` },
+        (payload) => {
+          const note = payload.new as ApplicationNote
+          setNotes((prev) => (prev.some((n) => n.id === note.id) ? prev : [note, ...prev]))
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [application?.id])
+
   async function loadJob(jobId: string) {
     setLoading(true)
 
@@ -135,7 +161,7 @@ export function JobDetail() {
       setJob(data as Job)
       const { data: app } = await supabase
         .from('applications')
-        .select('id, status, notes, next_step, applied_at, archived_at, needs_review')
+        .select('id, status, applied_at, archived_at, needs_review')
         .eq('job_id', jobId)
         .maybeSingle()
       setInPipeline(!!app)
@@ -143,15 +169,58 @@ export function JobDetail() {
         const a = app as AppFields
         setApplication(a)
         setStatusDraft(a.status)
-        setNotesDraft(a.notes ?? '')
-        setNextStepDraft(a.next_step ?? '')
         loadInterviewSteps(a.id)
+        loadNotes(a.id)
       } else {
         setApplication(null)
         setInterviewSteps([])
+        setNotes([])
       }
     }
     setLoading(false)
+  }
+
+  async function loadNotes(applicationId: string) {
+    const { data } = await supabase
+      .from('application_notes')
+      .select('id, user_id, application_id, body, actor, source, created_at')
+      .eq('application_id', applicationId)
+      .order('created_at', { ascending: false })
+    setNotes((data as ApplicationNote[]) ?? [])
+  }
+
+  async function submitNote() {
+    if (!application || !newNoteDraft.trim() || addingNote) return
+    setAddingNote(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setAddingNote(false); return }
+    const { data, error } = await supabase
+      .from('application_notes')
+      .insert({ user_id: user.id, application_id: application.id, body: newNoteDraft.trim(), actor: 'user' })
+      .select('id, user_id, application_id, body, actor, source, created_at')
+      .single()
+    if (!error && data) {
+      setNotes((prev) => [data as ApplicationNote, ...prev])
+      setNewNoteDraft('')
+    }
+    setAddingNote(false)
+  }
+
+  async function submitNextStep() {
+    if (!application || !nextStepDraft.trim() || savingNextStep) return
+    setSavingNextStep(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSavingNextStep(false); return }
+    const { data, error } = await supabase
+      .from('application_notes')
+      .insert({ user_id: user.id, application_id: application.id, body: nextStepDraft.trim(), actor: 'user', source: 'next_step' })
+      .select('id, user_id, application_id, body, actor, source, created_at')
+      .single()
+    if (!error && data) {
+      setNotes((prev) => [data as ApplicationNote, ...prev])
+      setNextStepDraft('')
+    }
+    setSavingNextStep(false)
   }
 
   async function loadInterviewSteps(applicationId: string) {
@@ -218,30 +287,19 @@ export function JobDetail() {
     setSavingNewStep(false)
   }
 
-  const appDirty =
-    !!application &&
-    (statusDraft !== application.status ||
-      notesDraft !== (application.notes ?? '') ||
-      nextStepDraft !== (application.next_step ?? ''))
+  const appDirty = !!application && statusDraft !== application.status
 
   async function saveApplicationEdits() {
     if (!application || savingApp) return
     setSavingApp(true)
-    const patch: Record<string, unknown> = { last_actor: 'user' }
-    if (statusDraft !== application.status) {
-      patch.status = statusDraft
-      if (statusDraft === 'applied' && !application.applied_at) patch.applied_at = new Date().toISOString()
-    }
-    if (notesDraft !== (application.notes ?? '')) patch.notes = notesDraft || null
-    if (nextStepDraft !== (application.next_step ?? '')) patch.next_step = nextStepDraft || null
+    const patch: Record<string, unknown> = { last_actor: 'user', status: statusDraft }
+    if (statusDraft === 'applied' && !application.applied_at) patch.applied_at = new Date().toISOString()
 
     const { error } = await supabase.from('applications').update(patch).eq('id', application.id)
     if (!error) {
       setApplication({
         ...application,
         status: statusDraft,
-        notes: notesDraft || null,
-        next_step: nextStepDraft || null,
         applied_at: (patch.applied_at as string) ?? application.applied_at,
       })
     }
@@ -332,7 +390,7 @@ export function JobDetail() {
     const { data: app } = await supabase
       .from('applications')
       .insert({ user_id: user.id, job_id: dbJobId, status: 'saved', last_actor: 'user' })
-      .select('id, status, notes, next_step, applied_at, archived_at, needs_review')
+      .select('id, status, applied_at, archived_at, needs_review')
       .single()
 
     addSavedJobId(job.id)
@@ -341,9 +399,8 @@ export function JobDetail() {
       const a = app as AppFields
       setApplication(a)
       setStatusDraft(a.status)
-      setNotesDraft(a.notes ?? '')
-      setNextStepDraft(a.next_step ?? '')
       setInterviewSteps([])
+      setNotes([])
     }
     setSaving(false)
   }
@@ -385,6 +442,8 @@ export function JobDetail() {
 
   const breakdown = job.match_breakdown
   const visibleSuggestions = suggestions.filter((_, i) => !dismissed.has(i))
+  // notes is sorted newest-first, so the first source='next_step' row is the current one
+  const currentNextStep = notes.find((n) => n.source === 'next_step') ?? null
 
   return (
     <div className="jd-page">
@@ -511,23 +570,6 @@ export function JobDetail() {
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
-
-                <label className="jd-field-label">Notes</label>
-                <textarea
-                  className="jd-textarea"
-                  value={notesDraft}
-                  onChange={(e) => setNotesDraft(e.target.value)}
-                  placeholder="Add a note…"
-                  rows={4}
-                />
-
-                <label className="jd-field-label">Next step</label>
-                <input
-                  className="jd-edit-input"
-                  value={nextStepDraft}
-                  onChange={(e) => setNextStepDraft(e.target.value)}
-                  placeholder="e.g. Follow up Friday"
-                />
 
                 <button className="btn btn-primary jd-save-btn" onClick={saveApplicationEdits} disabled={!appDirty || savingApp}>
                   {savingApp ? 'Saving…' : 'Save changes'}
@@ -748,6 +790,76 @@ export function JobDetail() {
         </div>
       </div>
 
+      {application && !application.needs_review && (
+        <div className="jd-notes-section">
+          <div className="jd-next-step-card">
+            <div className="jd-next-step-head">
+              <span className="jd-field-label" style={{ marginTop: 0 }}>Next Step</span>
+              {currentNextStep && <span className="jd-note-time">{timeAgo(currentNextStep.created_at)}</span>}
+            </div>
+            {currentNextStep ? (
+              <div className="jd-next-step-body">{currentNextStep.body}</div>
+            ) : (
+              <p className="jd-notes-empty">Nothing planned yet.</p>
+            )}
+            <div className="jd-next-step-composer">
+              <input
+                className="jd-edit-input"
+                value={nextStepDraft}
+                onChange={(e) => setNextStepDraft(e.target.value)}
+                placeholder={currentNextStep ? 'Update the next step…' : 'e.g. Follow up Friday'}
+                onKeyDown={(e) => { if (e.key === 'Enter') submitNextStep() }}
+              />
+              <button
+                className="btn btn-ghost jd-next-step-btn"
+                onClick={submitNextStep}
+                disabled={!nextStepDraft.trim() || savingNextStep}
+              >
+                {savingNextStep ? 'Saving…' : currentNextStep ? 'Update' : 'Set'}
+              </button>
+            </div>
+          </div>
+
+          <h2 className="jd-section-title">Updates</h2>
+
+          <div className="jd-note-composer">
+            <textarea
+              className="jd-textarea"
+              value={newNoteDraft}
+              onChange={(e) => setNewNoteDraft(e.target.value)}
+              placeholder="Log an update — a call, an email, a decision…"
+              rows={3}
+            />
+            <button
+              className="btn btn-primary jd-note-add-btn"
+              onClick={submitNote}
+              disabled={!newNoteDraft.trim() || addingNote}
+            >
+              {addingNote ? 'Adding…' : 'Add update'}
+            </button>
+          </div>
+
+          {notes.length === 0 ? (
+            <p className="jd-notes-empty">No updates yet.</p>
+          ) : (
+            <div className="jd-notes-list">
+              {notes.map((n) => (
+                <div key={n.id} className="jd-note-block">
+                  <div className="jd-note-meta">
+                    <span className={`jd-note-actor jd-note-actor--${n.actor ?? 'unknown'}`}>
+                      {NOTE_ACTOR_LABEL[n.actor ?? ''] ?? '—'}
+                    </span>
+                    {n.source === 'next_step' && <span className="jd-note-tag">→ Next step</span>}
+                    <span className="jd-note-time">{timeAgo(n.created_at)}</span>
+                  </div>
+                  <div className="jd-note-body">{n.body}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <style>{`
         .jd-page { padding: 32px; max-width: 1200px; }
         .back-link {
@@ -898,6 +1010,56 @@ export function JobDetail() {
         }
         .jd-review-actions { display: flex; gap: 8px; }
         .jd-review-actions .btn { flex: 1; font-size: 12px; padding: 6px 10px; }
+
+        /* Updates (application_notes) — first-class section, full page width */
+        .jd-notes-section { margin-top: 32px; max-width: 720px; }
+
+        /* Pinned "current" next step, derived from the latest source='next_step' note */
+        .jd-next-step-card {
+          background: rgba(255,193,99,0.05); border: 1px solid rgba(255,193,99,0.25);
+          border-radius: var(--radius-card); padding: 14px; margin-bottom: 24px;
+        }
+        .jd-next-step-head {
+          display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+        }
+        .jd-next-step-body {
+          font-size: 14px; line-height: 1.5; color: var(--color-text); margin-bottom: 10px;
+        }
+        .jd-next-step-composer { display: flex; gap: 8px; }
+        .jd-next-step-composer .jd-edit-input { flex: 1; }
+        .jd-next-step-btn { flex-shrink: 0; padding: 8px 14px; }
+        .jd-note-tag {
+          flex-shrink: 0; font-size: 11px; color: var(--color-secondary);
+        }
+
+        .jd-note-composer {
+          display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;
+        }
+        .jd-note-add-btn { align-self: flex-start; padding: 8px 16px; }
+        .jd-notes-empty {
+          font-size: 13px; color: rgba(242,240,234,0.4); padding: 4px 0;
+        }
+        .jd-notes-list { display: flex; flex-direction: column; gap: 10px; }
+        .jd-note-block {
+          background: rgba(255,255,255,0.025); border: 1px solid var(--color-border);
+          border-radius: var(--radius-card); padding: 12px 14px;
+        }
+        .jd-note-meta {
+          display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+        }
+        .jd-note-actor {
+          flex-shrink: 0; font-size: 11px; font-weight: 600; padding: 2px 8px;
+          border-radius: 999px; border: 1px solid var(--color-border);
+          color: rgba(242,240,234,0.55);
+        }
+        .jd-note-actor--claude { color: var(--color-accent); border-color: rgba(90,140,255,0.35); }
+        .jd-note-actor--user { color: rgba(242,240,234,0.75); }
+        .jd-note-actor--system { color: var(--color-secondary); border-color: rgba(255,193,99,0.35); }
+        .jd-note-time { font-size: 11px; color: rgba(242,240,234,0.35); }
+        .jd-note-body {
+          font-size: 13px; line-height: 1.6; color: rgba(242,240,234,0.8);
+          white-space: pre-wrap;
+        }
 
         /* Interview steps */
         .jd-steps {

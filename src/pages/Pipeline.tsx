@@ -486,9 +486,10 @@ export function Pipeline() {
     if (next) {
       const { data } = await supabase
         .from('applications')
-        .select('*, job:jobs!job_id(*)')
+        .select('*, job:jobs!job_id(*), application_notes(id, body, actor, created_at)')
         .eq('needs_review', true)
         .order('created_at', { ascending: false })
+        .order('created_at', { foreignTable: 'application_notes', ascending: false })
       setReviewApps((data as Application[]) ?? [])
     }
   }
@@ -601,7 +602,9 @@ export function Pipeline() {
                 <span className="archived-meta">
                   {[app.job?.company, app.status].filter(Boolean).join(' · ')}
                 </span>
-                {app.notes && <span className="review-notes">{app.notes}</span>}
+                {app.application_notes?.[0] && (
+                  <span className="review-notes">{app.application_notes[0].body}</span>
+                )}
               </div>
               <button className="btn btn-ghost archived-btn" onClick={() => approveReview(app)}>
                 Approve

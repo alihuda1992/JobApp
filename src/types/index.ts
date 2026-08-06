@@ -88,13 +88,25 @@ export interface InterviewStep {
   notes: string | null
 }
 
+export interface ApplicationNote {
+  id: string
+  user_id: string
+  application_id: string
+  body: string
+  actor: 'user' | 'claude' | 'system' | null
+  source: string | null
+  created_at: string
+}
+
 export interface Application {
   id: string
   user_id: string
   job_id: string
   status: 'saved' | 'applied' | 'interviewing' | 'offer' | 'closed' | 'rejected'
   applied_at: string | null
+  /** @deprecated superseded by application_notes — no code writes here anymore */
   notes: string | null
+  /** @deprecated superseded by application_notes rows with source: 'next_step' — no code writes here anymore */
   next_step: string | null
   archived_at: string | null
   needs_review: boolean
@@ -103,6 +115,7 @@ export interface Application {
   updated_at: string
   job?: Job
   interview_steps?: InterviewStep[]
+  application_notes?: ApplicationNote[]
 }
 
 export type ActivityAction =
@@ -114,6 +127,7 @@ export type ActivityAction =
   | 'review_approved'
   | 'review_dismissed'
   | 'notes_updated'
+  | 'note_added'
   | 'next_step_updated'
   | 'deleted'
   | 'cover_letter_saved'

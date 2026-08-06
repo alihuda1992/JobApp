@@ -37,7 +37,6 @@ export interface PipelineApp {
   id: string;
   status: string;
   applied_at: string | null;
-  notes: string | null;
   updated_at: string;
   job: { id: string; title: string | null; company: string | null };
   interview_steps?: InterviewStepRef[];

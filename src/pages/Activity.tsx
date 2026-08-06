@@ -43,6 +43,9 @@ function describe(entry: ActivityEntry): string {
       const lastLine = note.split('\n').filter(Boolean).pop()
       return lastLine ? `Note: ${lastLine}` : 'Notes updated'
     }
+    case 'note_added':
+      if (d.source === 'next_step') return d.note ? `Next step: ${d.note}` : 'Next step updated'
+      return d.note ? `Note: ${d.note}` : 'Note added'
     case 'next_step_updated':
       return d.next_step ? `Next step: ${d.next_step}` : 'Next step cleared'
     case 'deleted':
